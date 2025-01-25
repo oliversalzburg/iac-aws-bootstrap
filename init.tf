@@ -370,6 +370,31 @@ resource "aws_s3_bucket" "replica_logs" {
   }
 }
 
+data "aws_iam_policy_document" "replica_lockdown" {
+  provider  = aws.replica
+  version   = "2012-10-17"
+  policy_id = "replica-lockdown"
+  statement {
+    actions = [
+      "s3:DeleteObject",
+      "s3:PutObject"
+    ]
+    effect = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.state_bucket_replica_name}/*"]
+    sid       = "DenyWrite"
+  }
+}
+resource "aws_s3_bucket_policy" "replica" {
+  provider   = aws.replica
+  depends_on = [aws_s3_bucket.replica]
+  bucket     = local.state_bucket_replica_name
+  policy     = data.aws_iam_policy_document.replica_lockdown.json
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
   depends_on = [aws_s3_bucket.state]
   bucket     = local.state_bucket_name

@@ -72,6 +72,40 @@ AWS_PROFILE=AdministratorAccess-123456789101 terraform import random_password.se
 AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
 ```
 
+## Post-Deployment Validation
+
+### S3 State Bucket Initiator Write Access
+
+Expect success
+
+```shell
+# Write flag to state bucket
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms
+# Verify
+aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt -
+```
+
+### S3 State Replication
+
+Expect success
+
+```shell
+aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt -
+```
+
+### S3 State Replica Bucket Initiator Write Denial
+
+Expect failure
+
+```shell
+# Write flag to replica bucket
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+# Replace flag with own
+echo "$(date) MANIPULATION-MANIPULATION-MANIPULATION" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+# Delete flag
+aws s3 rm s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+```
+
 ## Terraform Implementation Spec
 
 <!-- BEGIN_TF_DOCS -->
