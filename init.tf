@@ -43,7 +43,7 @@ provider "aws" {
 }
 provider "aws" {
   alias = "replica"
-  // Replica in same content (eu-), out-of-region
+  // Replica in same continent (eu-), out-of-region
   region = "eu-north-1"
   default_tags {
     tags = local.tags
@@ -118,10 +118,10 @@ output "kms" {
       key_id = aws_kms_key.state.key_id
     }
     iac_state_replica = {
-      alias  = aws_kms_alias.replica.id
-      arn    = aws_kms_replica_key.replica.arn
-      id     = aws_kms_replica_key.replica.id
-      key_id = aws_kms_replica_key.replica.key_id
+      alias  = aws_kms_alias.replica_state.id
+      arn    = aws_kms_replica_key.state.arn
+      id     = aws_kms_replica_key.state.id
+      key_id = aws_kms_replica_key.state.key_id
     }
     iac_state_keystore = {
       arn    = aws_kms_replica_key.keystore.arn
@@ -259,7 +259,7 @@ resource "aws_kms_alias" "state" {
   target_key_id = aws_kms_key.state.id
   name          = local.alias_state
 }
-resource "aws_kms_replica_key" "replica" {
+resource "aws_kms_replica_key" "state" {
   provider                = aws.replica
   description             = "IaC State Encryption Key Replica"
   deletion_window_in_days = 30
@@ -269,9 +269,9 @@ resource "aws_kms_replica_key" "replica" {
     origin = data.aws_region.current.name
   }
 }
-resource "aws_kms_alias" "replica" {
+resource "aws_kms_alias" "replica_state" {
   provider      = aws.replica
-  target_key_id = aws_kms_replica_key.replica.id
+  target_key_id = aws_kms_replica_key.state.id
   name          = local.alias_state
 }
 resource "aws_kms_replica_key" "keystore" {
@@ -323,7 +323,7 @@ resource "aws_kms_alias" "lock" {
   target_key_id = aws_kms_key.lock.id
   name          = local.alias_lock
 }
-resource "aws_kms_replica_key" "lock_replica" {
+resource "aws_kms_replica_key" "lock" {
   provider                = aws.replica
   description             = "IaC Lock Encryption Key Replica"
   deletion_window_in_days = 30
@@ -334,7 +334,7 @@ resource "aws_kms_replica_key" "lock_replica" {
 }
 resource "aws_kms_alias" "lock_replica" {
   provider      = aws.replica
-  target_key_id = aws_kms_replica_key.lock_replica.id
+  target_key_id = aws_kms_replica_key.lock.id
   name          = local.alias_lock
 }
 resource "aws_kms_replica_key" "lock_keystore" {
@@ -385,7 +385,7 @@ resource "aws_kms_alias" "ssm" {
   target_key_id = aws_kms_key.ssm.id
   name          = local.alias_ssm
 }
-resource "aws_kms_replica_key" "ssm_replica" {
+resource "aws_kms_replica_key" "ssm" {
   provider                = aws.replica
   description             = "IaC SSM Encryption Key Replica"
   deletion_window_in_days = 30
@@ -397,7 +397,7 @@ resource "aws_kms_replica_key" "ssm_replica" {
 }
 resource "aws_kms_alias" "ssm_replica" {
   provider      = aws.replica
-  target_key_id = aws_kms_replica_key.ssm_replica.id
+  target_key_id = aws_kms_replica_key.ssm.id
   name          = local.alias_ssm
 }
 resource "aws_kms_replica_key" "ssm_keystore" {
@@ -721,10 +721,10 @@ resource "aws_dynamodb_table" "lock" {
     Name = "iac-state-lock"
   }
 }
-resource "aws_dynamodb_table_replica" "lock_replica" {
+resource "aws_dynamodb_table_replica" "lock" {
   provider               = aws.replica
   global_table_arn       = aws_dynamodb_table.lock.arn
-  kms_key_arn            = aws_kms_replica_key.lock_replica.arn
+  kms_key_arn            = aws_kms_replica_key.lock.arn
   point_in_time_recovery = true
 }
 
@@ -861,7 +861,7 @@ data "aws_iam_policy_document" "replication" {
       "kms:GenerateDataKey"
     ]
     effect    = "Allow"
-    resources = [aws_kms_replica_key.replica.arn]
+    resources = [aws_kms_replica_key.state.arn]
     sid       = "ReEncrypt"
     condition {
       test     = "StringEquals"
@@ -911,7 +911,7 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
       bucket        = aws_s3_bucket.replica.arn
       storage_class = "STANDARD_IA"
       encryption_configuration {
-        replica_kms_key_id = aws_kms_replica_key.replica.arn
+        replica_kms_key_id = aws_kms_replica_key.state.arn
       }
       metrics {
         event_threshold {
