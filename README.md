@@ -43,7 +43,6 @@ Result: `aws s3 ls --profile AdministratorAccess-123456789101`
 ## Setup
 
 ```shell
-cd terraform
 terraform init
 AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
 terraform output seed
@@ -57,7 +56,6 @@ terraform output seed
 To generate the seed outside of the first infrastructure plan generation, `-target` the resource.
 
 ```shell
-cd terraform
 terraform init
 AWS_PROFILE=AdministratorAccess-123456789101 terraform apply -refresh=false -target=random_password.seed
 AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
