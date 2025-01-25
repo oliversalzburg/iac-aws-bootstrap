@@ -58,12 +58,12 @@ provider "aws" {
   }
 }
 
-resource "random_password" "seed" {
-  length = 128
+resource "random_id" "seed" {
+  byte_length = 128
 }
 
 locals {
-  seed_base    = lower(replace(random_password.seed.result, "_", "-"))
+  seed_base    = sensitive(lower(replace(random_id.seed.b64_url, "_", "-")))
   seed_padding = split("", strrev(replace(local.seed_base, "-", "")))
   seed_derived = sha512(local.seed_base)
 
@@ -102,7 +102,7 @@ output "seed" {
   EOT
   sensitive   = true
   value = {
-    id = random_password.seed.result
+    id = random_id.seed.b64_url
   }
 }
 

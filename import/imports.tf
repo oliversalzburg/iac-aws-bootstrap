@@ -1,16 +1,3 @@
-#import {
-#  to = aws_kms_key.state
-#  id = "mrk-69a8e6e1b496455a899da561ed280e12"
-#}
-#import {
-#  to = aws_kms_key.lock
-#  id = "mrk-34de9a4f85ec4d62844d91232f873bd3"
-#}
-#import {
-#  to = aws_kms_key.ssm
-#  id = "mrk-764d3574dacc48499669230eec95d592"
-#}
-
 import {
   to = aws_kms_alias.state
   id = local.alias_state
