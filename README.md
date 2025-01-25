@@ -2,9 +2,12 @@
 
 Terraform remote state backend on AWS, using discovery-resistant naming patterns and ephemeral local states.
 
+> [!CAUTION]
+> **Extremely opinionated solution ahead!**
+
 - State store and lock table in home region.
-- State is encrypted with multi-region KMS key.
-- State and key are replicated to secondary region. Key is additionally replicated to a "keystore region".
+- State store and lock table are encrypted with multi-region KMS key.
+- State _and_ keys are replicated to secondary region. Key is additionally replicated to a "keystore region".
 - State and replica have distinct log buckets in their respective regions.
 - State version history and log history are maintained through lifecycle management.
 
@@ -12,19 +15,19 @@ Out of scope:
 
 - Custom key store
 - Custom key material
-- Multiple replication regions
+- Multiple state replication regions
 - Cross-account replication
 - Log encryption
-- Object lock on history
+- History object lock
 
 ## Init
 
-Create an AWS CLI SSO profile for your account.
+Create an AWS CLI SSO profile for your account, or whatever you have to do to commandeer the account :shipit:.
 
 ```shell
 aws configure sso
 > dev
-> https://d-99672a780a.awsapps.com/start/
+> https://d-1234567890.awsapps.com/start/
 > eu-central-1
 > <accept default>
 > <select target account>
@@ -33,14 +36,14 @@ aws configure sso
 > <accept default>
 ```
 
-Result: `aws s3 ls --profile InfraAdmin-753660617149`
+Result: `aws s3 ls --profile AdministratorAccess-123456789101`
 
 ## Setup
 
 ```shell
 cd terraform
 terraform init
-AWS_PROFILE=InfraAdmin-753660617149 terraform apply
+AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
 terraform output seed
 ```
 
@@ -49,13 +52,13 @@ terraform output seed
 
 ### Pre-Seeding
 
-To generate the seed outside of the infrastructure plan generation, `-target` the resource.
+To generate the seed outside of the firstinfrastructure plan generation, `-target` the resource.
 
 ```shell
 cd terraform
 terraform init
-AWS_PROFILE=InfraAdmin-753660617149 terraform apply -refresh=false -target=random_password.seed
-AWS_PROFILE=InfraAdmin-753660617149 terraform apply
+AWS_PROFILE=AdministratorAccess-123456789101 terraform apply -refresh=false -target=random_password.seed
+AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
 ```
 
 ## Restore
@@ -65,8 +68,8 @@ Restore the state by providing the seed that was used to create it.
 ```shell
 cd import
 terraform init
-AWS_PROFILE=InfraAdmin-753660617149 terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
-AWS_PROFILE=InfraAdmin-753660617149 terraform apply
+AWS_PROFILE=AdministratorAccess-123456789101 terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
 ```
 
 ## Terraform Implementation Spec

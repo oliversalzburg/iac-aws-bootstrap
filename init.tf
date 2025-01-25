@@ -23,22 +23,39 @@ terraform {
   }
 }
 
+locals {
+  tags = {
+    owner-manager = "iac-aws-bootstrap"
+  }
+}
 provider "aws" {
-  # assumed region is eu-central-1
+  # assumed region is in 'eu-'
+  default_tags {
+    tags = local.tags
+  }
 }
 provider "aws" {
   alias  = "global"
   region = "us-east-1"
+  default_tags {
+    tags = local.tags
+  }
 }
 provider "aws" {
   alias = "replica"
   // Replica in same content (eu-), out-of-region
   region = "eu-north-1"
+  default_tags {
+    tags = local.tags
+  }
 }
 provider "aws" {
   alias = "keystore"
   // Recovery keystore on different continent
   region = "ca-central-1"
+  default_tags {
+    tags = local.tags
+  }
 }
 
 resource "random_password" "seed" {
@@ -83,7 +100,7 @@ locals {
   state_bucket_replica_logs_name = strrev(local.namespaces[1])
   state_logs_bucket_name         = local.namespaces[1]
   state_key_alias                = "alias/iac-state${local.namespaces_local[0]}"
-  state_key_alias_pointer        = "/iac${local.namespaces_local[0]}/iac-state"
+  state_key_alias_pointer        = "/iac${local.namespaces_local[0]}/state-key"
 }
 
 output "seed" {
@@ -199,7 +216,6 @@ data "aws_region" "replica" {
 data "aws_iam_policy_document" "state_key" {
   version   = "2012-10-17"
   policy_id = "iac-state"
-
   statement {
     sid    = "Baseline IAM Access"
     effect = "Allow"
@@ -239,6 +255,7 @@ resource "aws_kms_replica_key" "replica" {
   provider                = aws.replica
   description             = "IaC State Encryption Key Replica"
   deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.state_key.json
   primary_key_arn         = aws_kms_key.state.arn
   tags = {
     origin = data.aws_region.current.name
@@ -253,6 +270,7 @@ resource "aws_kms_replica_key" "keystore" {
   provider                = aws.keystore
   description             = "IaC State Encryption Key Replica"
   deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.state_key.json
   primary_key_arn         = aws_kms_key.state.arn
   tags = {
     origin = data.aws_caller_identity.current.account_id
@@ -262,7 +280,6 @@ resource "aws_kms_replica_key" "keystore" {
 data "aws_iam_policy_document" "lock_key" {
   version   = "2012-10-17"
   policy_id = "iac-lock"
-
   statement {
     sid    = "Baseline IAM Access"
     effect = "Allow"
@@ -411,7 +428,6 @@ resource "aws_s3_bucket_versioning" "replica_logs" {
 resource "aws_s3_bucket_lifecycle_configuration" "state" {
   depends_on = [aws_s3_bucket.state]
   bucket     = local.state_bucket_name
-
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -431,7 +447,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "state" {
 resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
   bucket     = local.state_logs_bucket_name
-
   rule {
     id = "expire-history"
     noncurrent_version_expiration {
@@ -444,7 +459,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica]
   bucket     = local.state_bucket_replica_name
-
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -461,7 +475,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica_logs]
   bucket     = local.state_bucket_replica_logs_name
-
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -621,21 +634,18 @@ resource "aws_dynamodb_table_replica" "lock_replica" {
 data "aws_iam_policy_document" "state_observer" {
   version   = "2012-10-17"
   policy_id = "iac-state-observer"
-
   statement {
     actions   = ["s3:ListBucket"]
     effect    = "Allow"
     resources = [aws_s3_bucket.state.arn]
     sid       = "BucketAccess"
   }
-
   statement {
     actions   = ["s3:GetObject"]
     effect    = "Allow"
     resources = ["${aws_s3_bucket.state.arn}/*"]
     sid       = "StateAccess"
   }
-
   statement {
     actions = [
       "ssm:DescribeParameters",
@@ -655,7 +665,6 @@ data "aws_iam_policy_document" "state_observer" {
 data "aws_iam_policy_document" "state_manager" {
   version   = "2012-10-17"
   policy_id = "iac-state-manager"
-
   statement {
     actions = [
       "s3:PutObject",
@@ -665,7 +674,6 @@ data "aws_iam_policy_document" "state_manager" {
     resources = ["${aws_s3_bucket.state.arn}/*"]
     sid       = "StateAccess"
   }
-
   statement {
     actions = [
       "dynamodb:GetItem",
