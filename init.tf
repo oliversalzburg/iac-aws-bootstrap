@@ -81,12 +81,13 @@ locals {
     "${local.seed_padding[00]}${substr(local.seed_base, 00, 61)}${local.seed_padding[01]}",
     "${local.seed_padding[02]}${substr(local.seed_base, 61, 61)}${local.seed_padding[03]}"
   ]
-  namespaces_local = var.force_namespace ? [
+  namespaces_derived = sort([
     "-${local.seed_padding[04]}${substr(local.seed_derived, 00, 30)}${local.seed_padding[05]}",
     "-${local.seed_padding[06]}${substr(local.seed_derived, 30, 30)}${local.seed_padding[07]}",
     "-${local.seed_padding[08]}${substr(local.seed_derived, 60, 30)}${local.seed_padding[09]}",
     "-${local.seed_padding[10]}${substr(local.seed_derived, 90, 30)}${local.seed_padding[11]}"
-  ] : ["", "", "", ""]
+  ])
+  namespaces_local = var.force_namespace ? local.namespaces_derived : ["", "", "", ""]
 
   lock_key_alias                 = "alias/iac-lock${local.namespaces_local[0]}"
   lock_name                      = "iac-state-lock${local.namespaces_local[0]}"
@@ -101,6 +102,7 @@ locals {
   state_logs_bucket_name         = local.namespaces[1]
   state_key_alias                = "alias/iac-state${local.namespaces_local[0]}"
   state_key_alias_pointer        = "/iac${local.namespaces_local[0]}/state-key"
+  ssm_key_alias                  = "alias/iac-ssm${local.namespaces_local[0]}"
 }
 
 output "seed" {
@@ -334,6 +336,70 @@ resource "aws_kms_replica_key" "lock_keystore" {
   description             = "IaC Lock Encryption Key Replica"
   deletion_window_in_days = 30
   primary_key_arn         = aws_kms_key.lock.arn
+  tags = {
+    origin = data.aws_caller_identity.current.account_id
+  }
+}
+
+data "aws_iam_policy_document" "ssm_key" {
+  version   = "2012-10-17"
+  policy_id = "iac-ssm"
+  statement {
+    sid    = "Baseline IAM Access"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "Initiator Access"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+}
+resource "aws_kms_key" "ssm" {
+  description             = "IaC SSM Encryption Key"
+  deletion_window_in_days = 30
+  multi_region            = true
+  policy                  = data.aws_iam_policy_document.ssm_key.json
+  enable_key_rotation     = true
+  tags = {
+    Name = "iac-ssm"
+  }
+}
+resource "aws_kms_alias" "ssm" {
+  target_key_id = aws_kms_key.ssm.id
+  name          = local.ssm_key_alias
+}
+resource "aws_kms_replica_key" "ssm_replica" {
+  provider                = aws.replica
+  description             = "IaC SSM Encryption Key Replica"
+  deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.ssm_key.json
+  primary_key_arn         = aws_kms_key.ssm.arn
+  tags = {
+    origin = data.aws_region.current.name
+  }
+}
+resource "aws_kms_alias" "ssm_replica" {
+  provider      = aws.replica
+  target_key_id = aws_kms_replica_key.ssm_replica.id
+  name          = local.ssm_key_alias
+}
+resource "aws_kms_replica_key" "ssm_keystore" {
+  provider                = aws.keystore
+  description             = "IaC SSM Encryption Key Replica"
+  deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.ssm_key.json
+  primary_key_arn         = aws_kms_key.ssm.arn
   tags = {
     origin = data.aws_caller_identity.current.account_id
   }
@@ -862,16 +928,19 @@ resource "aws_ssm_parameter" "state_bucket" {
   type        = "String"
   description = "Bucket used for IaC S3 backend deployment(s)."
   value       = local.state_bucket_name
+  key_id      = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "state_bucket_key" {
   name        = local.state_key_alias_pointer
   type        = "String"
   description = "KMS key used for S3 backend encryption."
   value       = local.state_key_alias
+  key_id      = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "lock_table" {
   name        = local.lock_name_pointer
   type        = "String"
   description = "DynamoDB locking table used for IaC S3 backend deployment(s)."
   value       = aws_dynamodb_table.lock.id
+  key_id      = aws_kms_key.ssm.id
 }
