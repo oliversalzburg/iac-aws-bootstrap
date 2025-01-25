@@ -10,7 +10,8 @@ Terraform remote state backend on AWS, using discovery-resistant naming patterns
 - State store and lock table reside in home region.
 - State store and lock table are encrypted with multi-region KMS key.
 - Resulting identifiers are stored in KMS encrypted SSM parameters.
-- State, lock, and keys are replicated to secondary region. Only keys are additionally replicated to a "keystore region".
+- State, lock, and keys are replicated to secondary region.  
+  Keys are additionally replicated to a "keystore region".
 - State and replica have distinct log buckets in their respective regions.
 - State version history and log history are maintained through lifecycle management.
 
@@ -44,7 +45,7 @@ To generate the seed outside of the first infrastructure plan generation, `-targ
 
 ```shell
 terraform init
-terraform apply -refresh=false -target=random_password.seed
+terraform apply -refresh=false -target=random_id.seed
 terraform apply
 ```
 
@@ -55,7 +56,7 @@ Restore the state by providing the seed that was used to create it.
 ```shell
 cd import
 terraform init
-terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
 terraform apply
 ```
 
@@ -70,7 +71,7 @@ Expect success
 terraform output -json seed | jq --raw-output '.id'
 # Delete state.
 rm *.tfstate*
-terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
 terraform apply
 ```
 
@@ -104,7 +105,7 @@ Expect failure
 # Write flag to replica bucket
 echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
 # Replace flag with own
-echo "$(date) MANIPULATION-MANIPULATION-MANIPULATION" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+echo "$(date) CAPTURE" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
 # Delete flag
 aws s3 rm s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
 ```
@@ -194,7 +195,7 @@ No modules.
 | [aws_ssm_parameter.lock_table](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
 | [aws_ssm_parameter.state_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
 | [aws_ssm_parameter.state_bucket_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
-| [random_password.seed](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
+| [random_id.seed](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.lock_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.replica_lockdown](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -204,6 +205,7 @@ No modules.
 | [aws_iam_policy_document.state_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.state_manager](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.state_observer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_partition.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/partition) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 | [aws_region.replica](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
