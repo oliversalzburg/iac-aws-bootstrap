@@ -71,6 +71,7 @@ locals {
     "-${local.seed_padding[10]}${substr(local.seed_derived, 90, 30)}${local.seed_padding[11]}"
   ] : ["", "", "", ""]
 
+  lock_key_alias                 = "alias/iac-lock${local.namespaces_local[0]}"
   lock_name                      = "iac-state-lock${local.namespaces_local[0]}"
   lock_name_pointer              = "/iac${local.namespaces_local[0]}/state-lock-table"
   state_manager_name             = "iac-state-manager${local.namespaces_local[0]}"
@@ -191,6 +192,10 @@ output "iam" {
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
+data "aws_region" "replica" {
+  provider = aws.replica
+}
+
 data "aws_iam_policy_document" "state_key" {
   version   = "2012-10-17"
   policy_id = "iac-state"
@@ -249,6 +254,69 @@ resource "aws_kms_replica_key" "keystore" {
   description             = "IaC State Encryption Key Replica"
   deletion_window_in_days = 30
   primary_key_arn         = aws_kms_key.state.arn
+  tags = {
+    origin = data.aws_caller_identity.current.account_id
+  }
+}
+
+data "aws_iam_policy_document" "lock_key" {
+  version   = "2012-10-17"
+  policy_id = "iac-lock"
+
+  statement {
+    sid    = "Baseline IAM Access"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "Initiator Access"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+}
+resource "aws_kms_key" "lock" {
+  description             = "IaC Lock Encryption Key"
+  deletion_window_in_days = 30
+  multi_region            = true
+  policy                  = data.aws_iam_policy_document.lock_key.json
+  enable_key_rotation     = true
+  tags = {
+    Name = "iac-lock"
+  }
+}
+resource "aws_kms_alias" "lock" {
+  target_key_id = aws_kms_key.lock.id
+  name          = local.lock_key_alias
+}
+resource "aws_kms_replica_key" "lock_replica" {
+  provider                = aws.replica
+  description             = "IaC Lock Encryption Key Replica"
+  deletion_window_in_days = 30
+  primary_key_arn         = aws_kms_key.lock.arn
+  tags = {
+    origin = data.aws_region.current.name
+  }
+}
+resource "aws_kms_alias" "lock_replica" {
+  provider      = aws.replica
+  target_key_id = aws_kms_replica_key.lock_replica.id
+  name          = local.lock_key_alias
+}
+resource "aws_kms_replica_key" "lock_keystore" {
+  provider                = aws.keystore
+  description             = "IaC Lock Encryption Key Replica"
+  deletion_window_in_days = 30
+  primary_key_arn         = aws_kms_key.lock.arn
   tags = {
     origin = data.aws_caller_identity.current.account_id
   }
@@ -520,23 +588,34 @@ resource "aws_s3_bucket_logging" "replica" {
 }
 
 resource "aws_dynamodb_table" "lock" {
-  name     = local.lock_name
-  hash_key = "LockID"
-
-  billing_mode = "PAY_PER_REQUEST"
-
+  name             = local.lock_name
+  hash_key         = "LockID"
+  billing_mode     = "PAY_PER_REQUEST"
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
   attribute {
     name = "LockID"
     type = "S"
   }
-
+  lifecycle {
+    ignore_changes = [replica]
+  }
+  point_in_time_recovery {
+    enabled = true
+  }
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.lock.arn
+  }
   tags = {
     Name = "iac-state-lock"
   }
-
-  lifecycle {
-    prevent_destroy = false
-  }
+}
+resource "aws_dynamodb_table_replica" "lock_replica" {
+  provider               = aws.replica
+  global_table_arn       = aws_dynamodb_table.lock.arn
+  kms_key_arn            = aws_kms_replica_key.lock_replica.arn
+  point_in_time_recovery = true
 }
 
 data "aws_iam_policy_document" "state_observer" {
@@ -655,6 +734,41 @@ data "aws_iam_policy_document" "replication" {
     resources = ["${aws_s3_bucket.replica.arn}/*"]
     sid       = "Replicate"
   }
+  statement {
+    actions   = ["kms:Decrypt"]
+    effect    = "Allow"
+    resources = [aws_kms_key.state.arn]
+    sid       = "Decrypt"
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["${aws_s3_bucket.state.arn}/*"]
+    }
+  }
+  statement {
+    actions = [
+      "kms:Encrypt",
+      "kms:GenerateDataKey"
+    ]
+    effect    = "Allow"
+    resources = [aws_kms_replica_key.replica.arn]
+    sid       = "ReEncrypt"
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["${aws_s3_bucket.state.arn}/*"]
+    }
+  }
 }
 
 resource "aws_iam_policy" "replication" {
@@ -670,7 +784,7 @@ resource "aws_iam_role_policy_attachment" "replication" {
   policy_arn = aws_iam_policy.replication.arn
 }
 resource "aws_s3_bucket_replication_configuration" "replication" {
-  depends_on = [aws_s3_bucket_versioning.state]
+  depends_on = [aws_s3_bucket_versioning.state, aws_s3_bucket_versioning.replica]
   role       = aws_iam_role.replication.arn
   bucket     = local.state_bucket_name
   rule {
