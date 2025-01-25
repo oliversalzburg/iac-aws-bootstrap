@@ -5,13 +5,14 @@ Terraform remote state backend on AWS, using discovery-resistant naming patterns
 > [!CAUTION]
 > **Extremely opinionated solution ahead!**
 
+- Single file ignition.
 - Globally addressable resource names (S3) are fully randomized.
 - State store and lock table reside in home region.
 - State store and lock table are encrypted with multi-region KMS key.
-- State _and_ keys are replicated to secondary region. Keys are additionally replicated to a "keystore region".
+- Resulting identifiers are stored in KMS encrypted SSM parameters.
+- State, lock, and keys are replicated to secondary region. Only keys are additionally replicated to a "keystore region".
 - State and replica have distinct log buckets in their respective regions.
 - State version history and log history are maintained through lifecycle management.
-- Resulting identifiers are stored in encrypted SSM parameters.
 
 Out of scope:
 
@@ -24,27 +25,13 @@ Out of scope:
 
 ## Init
 
-Create an AWS CLI SSO profile for your account, or whatever you have to do to commandeer the account :shipit:.
-
-```shell
-aws configure sso
-> dev
-> https://d-1234567890.awsapps.com/start/
-> eu-central-1
-> <accept default>
-> <select target account>
-> eu-central-1
-> json
-> <accept default>
-```
-
-Result: `aws s3 ls --profile AdministratorAccess-123456789101`
+Create an AWS CLI SSO profile for your account, or whatever you have to do to commandeer the account :shipit:
 
 ## Setup
 
 ```shell
 terraform init
-AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
+terraform apply
 terraform output seed
 ```
 
@@ -57,8 +44,8 @@ To generate the seed outside of the first infrastructure plan generation, `-targ
 
 ```shell
 terraform init
-AWS_PROFILE=AdministratorAccess-123456789101 terraform apply -refresh=false -target=random_password.seed
-AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
+terraform apply -refresh=false -target=random_password.seed
+terraform apply
 ```
 
 ## Restore
@@ -68,8 +55,8 @@ Restore the state by providing the seed that was used to create it.
 ```shell
 cd import
 terraform init
-AWS_PROFILE=AdministratorAccess-123456789101 terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
-AWS_PROFILE=AdministratorAccess-123456789101 terraform apply
+terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+terraform apply
 ```
 
 ## Post-Deployment Validation
@@ -214,10 +201,10 @@ No modules.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_dynamodb"></a> [dynamodb](#output\_dynamodb) | Holds IaC state locks. |
+| <a name="output_dynamodb"></a> [dynamodb](#output\_dynamodb) | Details about the created DynamoDB state lock table. |
 | <a name="output_iam"></a> [iam](#output\_iam) | ARN of the IAM policy that allows management access to the state resources. |
-| <a name="output_kms"></a> [kms](#output\_kms) | Server-Side-Encryption keys for created S3 buckets. |
-| <a name="output_s3"></a> [s3](#output\_s3) | Information regarding created S3 buckets. |
-| <a name="output_seed"></a> [seed](#output\_seed) | Cryptographic seed of this backend deployment. |
-| <a name="output_ssm"></a> [ssm](#output\_ssm) | ARNs of SSM parameters in the account, which hold the names of the created resources. |
+| <a name="output_kms"></a> [kms](#output\_kms) | Details about Server-Side-Encryption keys for created resources. |
+| <a name="output_s3"></a> [s3](#output\_s3) | Details about all created S3 buckets. |
+| <a name="output_seed"></a> [seed](#output\_seed) | Cryptographic seed of this backend deployment.<br>You need this to recover the state at a later point in time. |
+| <a name="output_ssm"></a> [ssm](#output\_ssm) | Details about SSM parameters in the account, which hold the names of the created resources. |
 <!-- END_TF_DOCS -->

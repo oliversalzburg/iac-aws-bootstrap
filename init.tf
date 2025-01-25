@@ -89,24 +89,27 @@ locals {
   ])
   namespaces_local = var.force_namespace ? local.namespaces_derived : ["", "", "", ""]
 
-  lock_key_alias                 = "alias/iac-lock${local.namespaces_local[0]}"
-  lock_name                      = "iac-state-lock${local.namespaces_local[0]}"
-  lock_name_pointer              = "/iac${local.namespaces_local[0]}/state-lock-table"
-  state_manager_name             = "iac-state-manager${local.namespaces_local[0]}"
-  state_observer_name            = "iac-state-observer${local.namespaces_local[0]}"
-  state_replication_name         = "iac-state-replicator${local.namespaces_local[0]}"
-  state_bucket_name              = local.namespaces[0]
-  state_bucket_name_pointer      = "/iac${local.namespaces_local[0]}/state-bucket"
-  state_bucket_replica_name      = strrev(local.namespaces[0])
+  alias_lock                     = "alias/iac-lock${local.namespaces_local[0]}"
+  alias_ssm                      = "alias/iac-ssm${local.namespaces_local[0]}"
+  alias_state                    = "alias/iac-state${local.namespaces_local[0]}"
+  name_lock                      = "iac-state-lock${local.namespaces_local[0]}"
+  name_state_bucket              = local.namespaces[0]
+  name_state_logs                = local.namespaces[1]
+  name_state_manager             = "iac-state-manager${local.namespaces_local[0]}"
+  name_state_observer            = "iac-state-observer${local.namespaces_local[0]}"
+  name_state_replicator          = "iac-state-replicator${local.namespaces_local[0]}"
+  pointer_alias_state            = "/iac${local.namespaces_local[0]}/state-key"
+  pointer_name_lock              = "/iac${local.namespaces_local[0]}/state-lock-table"
+  pointer_name_state_bucket      = "/iac${local.namespaces_local[0]}/state-bucket"
   state_bucket_replica_logs_name = strrev(local.namespaces[1])
-  state_logs_bucket_name         = local.namespaces[1]
-  state_key_alias                = "alias/iac-state${local.namespaces_local[0]}"
-  state_key_alias_pointer        = "/iac${local.namespaces_local[0]}/state-key"
-  ssm_key_alias                  = "alias/iac-ssm${local.namespaces_local[0]}"
+  state_bucket_replica_name      = strrev(local.namespaces[0])
 }
 
 output "seed" {
-  description = "Cryptographic seed of this backend deployment."
+  description = <<-EOT
+  Cryptographic seed of this backend deployment.
+  You need this to recover the state at a later point in time.
+  EOT
   sensitive   = true
   value = {
     id = random_password.seed.result
@@ -114,7 +117,9 @@ output "seed" {
 }
 
 output "kms" {
-  description = "Server-Side-Encryption keys for created S3 buckets."
+  description = <<-EOT
+  Details about Server-Side-Encryption keys for created resources.
+  EOT
   value = {
     iac_state = {
       arn   = aws_kms_key.state.arn
@@ -134,16 +139,18 @@ output "kms" {
 }
 
 output "s3" {
-  description = "Information regarding created S3 buckets."
+  description = <<-EOT
+  Details about all created S3 buckets.
+  EOT
   sensitive   = true
   value = {
     state = {
       arn = aws_s3_bucket.state.arn,
-      id  = local.state_bucket_name
+      id  = local.name_state_bucket
     }
     state_logs = {
       arn = aws_s3_bucket.state_logs.arn,
-      id  = local.state_logs_bucket_name
+      id  = local.name_state_logs
     }
     replica = {
       arn = aws_s3_bucket.replica.arn,
@@ -157,7 +164,9 @@ output "s3" {
 }
 
 output "dynamodb" {
-  description = "Holds IaC state locks."
+  description = <<-EOT
+  Details about the created DynamoDB state lock table.
+  EOT
   value = {
     lock = {
       arn = aws_dynamodb_table.lock.arn
@@ -167,7 +176,9 @@ output "dynamodb" {
 }
 
 output "ssm" {
-  description = "ARNs of SSM parameters in the account, which hold the names of the created resources."
+  description = <<-EOT
+  Details about SSM parameters in the account, which hold the names of the created resources.
+  EOT
   value = {
     state_bucket = {
       arn = aws_ssm_parameter.state_bucket.arn,
@@ -251,7 +262,7 @@ resource "aws_kms_key" "state" {
 }
 resource "aws_kms_alias" "state" {
   target_key_id = aws_kms_key.state.id
-  name          = local.state_key_alias
+  name          = local.alias_state
 }
 resource "aws_kms_replica_key" "replica" {
   provider                = aws.replica
@@ -266,7 +277,7 @@ resource "aws_kms_replica_key" "replica" {
 resource "aws_kms_alias" "replica" {
   provider      = aws.replica
   target_key_id = aws_kms_replica_key.replica.id
-  name          = local.state_key_alias
+  name          = local.alias_state
 }
 resource "aws_kms_replica_key" "keystore" {
   provider                = aws.keystore
@@ -315,7 +326,7 @@ resource "aws_kms_key" "lock" {
 }
 resource "aws_kms_alias" "lock" {
   target_key_id = aws_kms_key.lock.id
-  name          = local.lock_key_alias
+  name          = local.alias_lock
 }
 resource "aws_kms_replica_key" "lock_replica" {
   provider                = aws.replica
@@ -329,7 +340,7 @@ resource "aws_kms_replica_key" "lock_replica" {
 resource "aws_kms_alias" "lock_replica" {
   provider      = aws.replica
   target_key_id = aws_kms_replica_key.lock_replica.id
-  name          = local.lock_key_alias
+  name          = local.alias_lock
 }
 resource "aws_kms_replica_key" "lock_keystore" {
   provider                = aws.keystore
@@ -377,7 +388,7 @@ resource "aws_kms_key" "ssm" {
 }
 resource "aws_kms_alias" "ssm" {
   target_key_id = aws_kms_key.ssm.id
-  name          = local.ssm_key_alias
+  name          = local.alias_ssm
 }
 resource "aws_kms_replica_key" "ssm_replica" {
   provider                = aws.replica
@@ -392,7 +403,7 @@ resource "aws_kms_replica_key" "ssm_replica" {
 resource "aws_kms_alias" "ssm_replica" {
   provider      = aws.replica
   target_key_id = aws_kms_replica_key.ssm_replica.id
-  name          = local.ssm_key_alias
+  name          = local.alias_ssm
 }
 resource "aws_kms_replica_key" "ssm_keystore" {
   provider                = aws.keystore
@@ -406,14 +417,14 @@ resource "aws_kms_replica_key" "ssm_keystore" {
 }
 
 resource "aws_s3_bucket" "state" {
-  bucket        = local.state_bucket_name
+  bucket        = local.name_state_bucket
   force_destroy = true
   tags = {
     Name = "iac-state"
   }
 }
 resource "aws_s3_bucket" "state_logs" {
-  bucket        = local.state_logs_bucket_name
+  bucket        = local.name_state_logs
   force_destroy = true
   tags = {
     Name = "iac-state-logs"
@@ -463,7 +474,7 @@ resource "aws_s3_bucket_policy" "replica" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
   depends_on = [aws_s3_bucket.state]
-  bucket     = local.state_bucket_name
+  bucket     = local.name_state_bucket
   rule {
     bucket_key_enabled = true
     apply_server_side_encryption_by_default {
@@ -487,14 +498,14 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "replica" {
 
 resource "aws_s3_bucket_versioning" "state" {
   depends_on = [aws_s3_bucket.state]
-  bucket     = local.state_bucket_name
+  bucket     = local.name_state_bucket
   versioning_configuration {
     status = "Enabled"
   }
 }
 resource "aws_s3_bucket_versioning" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
-  bucket     = local.state_logs_bucket_name
+  bucket     = local.name_state_logs
   versioning_configuration {
     status = "Enabled"
   }
@@ -518,7 +529,7 @@ resource "aws_s3_bucket_versioning" "replica_logs" {
 
 resource "aws_s3_bucket_lifecycle_configuration" "state" {
   depends_on = [aws_s3_bucket.state]
-  bucket     = local.state_bucket_name
+  bucket     = local.name_state_bucket
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -537,7 +548,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "state" {
 }
 resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
-  bucket     = local.state_logs_bucket_name
+  bucket     = local.name_state_logs
   rule {
     id = "expire-history"
     noncurrent_version_expiration {
@@ -581,7 +592,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replica_logs" {
 
 resource "aws_s3_bucket_public_access_block" "state" {
   depends_on              = [aws_s3_bucket.state]
-  bucket                  = local.state_bucket_name
+  bucket                  = local.name_state_bucket
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -589,7 +600,7 @@ resource "aws_s3_bucket_public_access_block" "state" {
 }
 resource "aws_s3_bucket_public_access_block" "state_logs" {
   depends_on              = [aws_s3_bucket.state_logs]
-  bucket                  = local.state_logs_bucket_name
+  bucket                  = local.name_state_logs
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -625,7 +636,7 @@ resource "aws_s3_bucket_metric" "state_logs" {
 
 resource "aws_s3_bucket_acl" "state" {
   depends_on = [aws_s3_bucket_ownership_controls.state]
-  bucket     = local.state_bucket_name
+  bucket     = local.name_state_bucket
   acl        = "private"
 }
 resource "aws_s3_bucket_acl" "replica" {
@@ -636,7 +647,7 @@ resource "aws_s3_bucket_acl" "replica" {
 }
 resource "aws_s3_bucket_acl" "state_logs" {
   depends_on = [aws_s3_bucket_ownership_controls.state_logs]
-  bucket     = local.state_logs_bucket_name
+  bucket     = local.name_state_logs
   acl        = "log-delivery-write"
 }
 resource "aws_s3_bucket_acl" "replica_logs" {
@@ -648,14 +659,14 @@ resource "aws_s3_bucket_acl" "replica_logs" {
 
 resource "aws_s3_bucket_ownership_controls" "state" {
   depends_on = [aws_s3_bucket.state]
-  bucket     = local.state_bucket_name
+  bucket     = local.name_state_bucket
   rule {
     object_ownership = "BucketOwnerPreferred"
   }
 }
 resource "aws_s3_bucket_ownership_controls" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
-  bucket     = local.state_logs_bucket_name
+  bucket     = local.name_state_logs
   rule {
     object_ownership = "BucketOwnerPreferred"
   }
@@ -679,8 +690,8 @@ resource "aws_s3_bucket_ownership_controls" "replica_logs" {
 
 resource "aws_s3_bucket_logging" "state" {
   depends_on    = [aws_s3_bucket.state, aws_s3_bucket.state_logs]
-  bucket        = local.state_bucket_name
-  target_bucket = local.state_logs_bucket_name
+  bucket        = local.name_state_bucket
+  target_bucket = local.name_state_logs
   target_prefix = "log/"
 }
 resource "aws_s3_bucket_logging" "replica" {
@@ -692,7 +703,7 @@ resource "aws_s3_bucket_logging" "replica" {
 }
 
 resource "aws_dynamodb_table" "lock" {
-  name             = local.lock_name
+  name             = local.name_lock
   hash_key         = "LockID"
   billing_mode     = "PAY_PER_REQUEST"
   stream_enabled   = true
@@ -778,12 +789,12 @@ data "aws_iam_policy_document" "state_manager" {
 }
 
 resource "aws_iam_policy" "state_observer" {
-  name        = local.state_observer_name
+  name        = local.name_state_observer
   description = "Allows reading the IaC state."
   policy      = data.aws_iam_policy_document.state_observer.json
 }
 resource "aws_iam_policy" "state_manager" {
-  name        = local.state_manager_name
+  name        = local.name_state_manager
   description = "Allows writing the IaC state."
   policy      = data.aws_iam_policy_document.state_manager.json
 }
@@ -871,11 +882,11 @@ data "aws_iam_policy_document" "replication" {
 }
 
 resource "aws_iam_policy" "replication" {
-  name   = local.state_replication_name
+  name   = local.name_state_replicator
   policy = data.aws_iam_policy_document.replication.json
 }
 resource "aws_iam_role" "replication" {
-  name               = local.state_replication_name
+  name               = local.name_state_replicator
   assume_role_policy = data.aws_iam_policy_document.s3_assume_role.json
 }
 resource "aws_iam_role_policy_attachment" "replication" {
@@ -885,7 +896,7 @@ resource "aws_iam_role_policy_attachment" "replication" {
 resource "aws_s3_bucket_replication_configuration" "replication" {
   depends_on = [aws_s3_bucket_versioning.state, aws_s3_bucket_versioning.replica]
   role       = aws_iam_role.replication.arn
-  bucket     = local.state_bucket_name
+  bucket     = local.name_state_bucket
   rule {
     id     = "main"
     status = "Enabled"
@@ -924,21 +935,21 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
 }
 
 resource "aws_ssm_parameter" "state_bucket" {
-  name        = local.state_bucket_name_pointer
+  name        = local.pointer_name_state_bucket
   type        = "String"
   description = "Bucket used for IaC S3 backend deployment(s)."
-  value       = local.state_bucket_name
+  value       = local.name_state_bucket
   key_id      = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "state_bucket_key" {
-  name        = local.state_key_alias_pointer
+  name        = local.pointer_alias_state
   type        = "String"
   description = "KMS key used for S3 backend encryption."
-  value       = local.state_key_alias
+  value       = local.alias_state
   key_id      = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "lock_table" {
-  name        = local.lock_name_pointer
+  name        = local.pointer_name_lock
   type        = "String"
   description = "DynamoDB locking table used for IaC S3 backend deployment(s)."
   value       = aws_dynamodb_table.lock.id
