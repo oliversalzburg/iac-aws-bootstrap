@@ -1,3 +1,41 @@
+#import {
+#  to = aws_kms_key.state
+#  id = "mrk-69a8e6e1b496455a899da561ed280e12"
+#}
+#import {
+#  to = aws_kms_key.lock
+#  id = "mrk-34de9a4f85ec4d62844d91232f873bd3"
+#}
+#import {
+#  to = aws_kms_key.ssm
+#  id = "mrk-764d3574dacc48499669230eec95d592"
+#}
+
+import {
+  to = aws_kms_alias.state
+  id = local.alias_state
+}
+import {
+  to = aws_kms_alias.replica
+  id = local.alias_state
+}
+import {
+  to = aws_kms_alias.lock
+  id = local.alias_lock
+}
+import {
+  to = aws_kms_alias.lock_replica
+  id = local.alias_lock
+}
+import {
+  to = aws_kms_alias.ssm
+  id = local.alias_ssm
+}
+import {
+  to = aws_kms_alias.ssm_replica
+  id = local.alias_ssm
+}
+
 import {
   to = aws_s3_bucket.state
   id = local.name_state_bucket
@@ -18,6 +56,10 @@ import {
 import {
   to = aws_dynamodb_table.lock
   id = local.name_lock
+}
+import {
+  to = aws_dynamodb_table_replica.lock_replica
+  id = "${local.name_lock}:${data.aws_region.current.name}"
 }
 
 import {

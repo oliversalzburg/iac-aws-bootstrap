@@ -77,20 +77,20 @@ locals {
     "-${local.seed_padding[08]}${substr(local.seed_derived, 60, 30)}${local.seed_padding[09]}",
     "-${local.seed_padding[10]}${substr(local.seed_derived, 90, 30)}${local.seed_padding[11]}"
   ])
-  namespaces_local = var.force_namespace ? local.namespaces_derived : ["", "", "", ""]
+  name_state_forced = var.force_namespace ? local.namespaces_derived : ["", "", "", ""]
 
-  alias_lock                     = "alias/iac-lock${local.namespaces_local[0]}"
-  alias_ssm                      = "alias/iac-ssm${local.namespaces_local[0]}"
-  alias_state                    = "alias/iac-state${local.namespaces_local[0]}"
-  name_lock                      = "iac-state-lock${local.namespaces_local[0]}"
+  alias_lock                     = "alias/iac-lock${local.name_state_forced[0]}"
+  alias_ssm                      = "alias/iac-ssm${local.name_state_forced[0]}"
+  alias_state                    = "alias/iac-state${local.name_state_forced[0]}"
+  name_lock                      = "iac-state-lock${local.name_state_forced[0]}"
   name_state_bucket              = local.namespaces[0]
   name_state_logs                = local.namespaces[1]
-  name_state_manager             = "iac-state-manager${local.namespaces_local[0]}"
-  name_state_observer            = "iac-state-observer${local.namespaces_local[0]}"
-  name_state_replicator          = "iac-state-replicator${local.namespaces_local[0]}"
-  pointer_alias_state            = "/iac${local.namespaces_local[0]}/state-key"
-  pointer_name_lock              = "/iac${local.namespaces_local[0]}/state-lock-table"
-  pointer_name_state_bucket      = "/iac${local.namespaces_local[0]}/state-bucket"
+  name_state_manager             = "iac-state-manager${local.name_state_forced[0]}"
+  name_state_observer            = "iac-state-observer${local.name_state_forced[0]}"
+  name_state_replicator          = "iac-state-replicator${local.name_state_forced[0]}"
+  pointer_alias_state            = "/iac${local.name_state_forced[0]}/state-key"
+  pointer_name_lock              = "/iac${local.name_state_forced[0]}/state-lock-table"
+  pointer_name_state_bucket      = "/iac${local.name_state_forced[0]}/state-bucket"
   state_bucket_replica_logs_name = strrev(local.namespaces[1])
   state_bucket_replica_name      = strrev(local.namespaces[0])
 }
@@ -112,18 +112,21 @@ output "kms" {
   EOT
   value = {
     iac_state = {
-      arn   = aws_kms_key.state.arn
-      id    = aws_kms_key.state.id
-      alias = aws_kms_alias.state.id
+      alias  = aws_kms_alias.state.id
+      arn    = aws_kms_key.state.arn
+      id     = aws_kms_key.state.id
+      key_id = aws_kms_key.state.key_id
     }
     iac_state_replica = {
-      arn   = aws_kms_replica_key.replica.arn
-      id    = aws_kms_replica_key.replica.id
-      alias = aws_kms_alias.replica.id
+      alias  = aws_kms_alias.replica.id
+      arn    = aws_kms_replica_key.replica.arn
+      id     = aws_kms_replica_key.replica.id
+      key_id = aws_kms_replica_key.replica.key_id
     }
     iac_state_keystore = {
-      arn = aws_kms_replica_key.keystore.arn
-      id  = aws_kms_replica_key.keystore.id
+      arn    = aws_kms_replica_key.keystore.arn
+      id     = aws_kms_replica_key.keystore.id
+      key_id = aws_kms_replica_key.keystore.key_id
     }
   }
 }
@@ -242,6 +245,7 @@ data "aws_iam_policy_document" "state_key" {
   }
 }
 resource "aws_kms_key" "state" {
+
   description             = "IaC State Encryption Key"
   deletion_window_in_days = 30
   multi_region            = true
