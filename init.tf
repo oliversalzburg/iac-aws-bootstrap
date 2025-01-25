@@ -60,22 +60,12 @@ provider "aws" {
 
 resource "random_password" "seed" {
   length = 128
-
-  lower            = true
-  min_lower        = 1
-  min_numeric      = 1
-  min_special      = 1
-  min_upper        = 0
-  numeric          = true
-  override_special = "-"
-  special          = true
-  upper            = false
 }
 
 locals {
-  seed_base    = random_password.seed.result
-  seed_padding = split("", strrev(replace(random_password.seed.result, "-", "")))
-  seed_derived = sha512(random_password.seed.result)
+  seed_base    = lower(replace(random_password.seed.result, "_", "-"))
+  seed_padding = split("", strrev(replace(local.seed_base, "-", "")))
+  seed_derived = sha512(local.seed_base)
 
   namespaces = [
     "${local.seed_padding[00]}${substr(local.seed_base, 00, 61)}${local.seed_padding[01]}",
@@ -220,6 +210,7 @@ output "iam" {
 
 // Terraform internals below
 
+data "aws_partition" "current" {}
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 data "aws_region" "replica" {

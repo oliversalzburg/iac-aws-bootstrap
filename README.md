@@ -61,6 +61,19 @@ terraform apply
 
 ## Post-Deployment Validation
 
+### State Restore
+
+Expect success
+
+```shell
+# Note seed.
+terraform output -json seed | jq --raw-output '.id'
+# Delete state.
+rm *.tfstate*
+terraform import random_password.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+terraform apply
+```
+
 ### S3 State Bucket Initiator Write Access
 
 Expect success
@@ -77,6 +90,9 @@ aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.t
 Expect success
 
 ```shell
+# Write flag to state bucket
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms
+# Verify on replica
 aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt -
 ```
 
