@@ -29,14 +29,16 @@ locals {
   }
 }
 provider "aws" {
-  # assumed region is in 'eu-'
+  alias  = "global"
+  # Global entrypoint is always in us-east-1. Never adjust this.
+  region = "us-east-1"
   default_tags {
     tags = local.tags
   }
 }
 provider "aws" {
-  alias  = "global"
-  region = "us-east-1"
+  # Assumed region is in 'eu-', but not 'eu-north-1'
+  # You are expected to adjust these regions in your copy of this code.
   default_tags {
     tags = local.tags
   }
@@ -497,7 +499,7 @@ data "aws_iam_policy_document" "state_lockdown" {
     sid = "RestrictToTLSRequestsOnly"
   }
   statement {
-    actions = ["s3:*"]
+    actions = ["s3:PutObject"]
     effect  = "Deny"
     principals {
       type        = "*"
@@ -618,7 +620,7 @@ data "aws_iam_policy_document" "replica_lockdown" {
     sid = "RestrictToTLSRequestsOnly"
   }
   statement {
-    actions = ["s3:*"]
+    actions = ["s3:PutObject"]
     effect  = "Deny"
     principals {
       type        = "*"
