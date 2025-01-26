@@ -3,7 +3,7 @@ import {
   id = local.alias_state
 }
 import {
-  to = aws_kms_alias.replica_state
+  to = aws_kms_alias.state_replica
   id = local.alias_state
 }
 import {
@@ -21,6 +21,43 @@ import {
 import {
   to = aws_kms_alias.ssm_replica
   id = local.alias_ssm
+}
+
+import {
+  to = aws_kms_key.state
+  id = data.aws_kms_key.state.id
+}
+import {
+  to = aws_kms_key.lock
+  id = data.aws_kms_key.lock.id
+}
+import {
+  to = aws_kms_key.ssm
+  id = data.aws_kms_key.ssm.id
+}
+import {
+  to = aws_kms_replica_key.state
+  id = data.aws_kms_key.state.id
+}
+import {
+  to = aws_kms_replica_key.lock
+  id = data.aws_kms_key.lock.id
+}
+import {
+  to = aws_kms_replica_key.ssm
+  id = data.aws_kms_key.ssm.id
+}
+import {
+  to = aws_kms_replica_key.state_keystore
+  id = data.aws_kms_key.state.id
+}
+import {
+  to = aws_kms_replica_key.lock_keystore
+  id = data.aws_kms_key.lock.id
+}
+import {
+  to = aws_kms_replica_key.ssm_keystore
+  id = data.aws_kms_key.ssm.id
 }
 
 import {

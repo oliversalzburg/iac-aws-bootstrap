@@ -118,15 +118,15 @@ output "kms" {
       key_id = aws_kms_key.state.key_id
     }
     iac_state_replica = {
-      alias  = aws_kms_alias.replica_state.id
+      alias  = aws_kms_alias.state_replica.id
       arn    = aws_kms_replica_key.state.arn
       id     = aws_kms_replica_key.state.id
       key_id = aws_kms_replica_key.state.key_id
     }
     iac_state_keystore = {
-      arn    = aws_kms_replica_key.keystore.arn
-      id     = aws_kms_replica_key.keystore.id
-      key_id = aws_kms_replica_key.keystore.key_id
+      arn    = aws_kms_replica_key.state_keystore.arn
+      id     = aws_kms_replica_key.state_keystore.id
+      key_id = aws_kms_replica_key.state_keystore.key_id
     }
   }
 }
@@ -272,12 +272,12 @@ resource "aws_kms_replica_key" "state" {
     origin = data.aws_region.current.name
   }
 }
-resource "aws_kms_alias" "replica_state" {
+resource "aws_kms_alias" "state_replica" {
   provider      = aws.replica
   target_key_id = aws_kms_replica_key.state.id
   name          = local.alias_state
 }
-resource "aws_kms_replica_key" "keystore" {
+resource "aws_kms_replica_key" "state_keystore" {
   provider                = aws.keystore
   description             = "IaC State Encryption Key Replica"
   deletion_window_in_days = 30
