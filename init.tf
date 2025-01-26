@@ -29,7 +29,7 @@ locals {
   }
 }
 provider "aws" {
-  alias  = "global"
+  alias = "global"
   # Global entrypoint is always in us-east-1. Never adjust this.
   region = "us-east-1"
   default_tags {
@@ -81,20 +81,22 @@ locals {
   ])
   name_state_forced = var.force_namespace ? local.namespaces_derived : ["", "", "", ""]
 
-  alias_lock                     = "alias/iac-lock${local.name_state_forced[0]}"
-  alias_ssm                      = "alias/iac-ssm${local.name_state_forced[0]}"
-  alias_state                    = "alias/iac-state${local.name_state_forced[0]}"
-  name_lock                      = "iac-state-lock${local.name_state_forced[0]}"
-  name_state_bucket              = local.namespaces[0]
-  name_state_logs                = local.namespaces[1]
-  name_state_manager             = "iac-state-manager${local.name_state_forced[0]}"
-  name_state_observer            = "iac-state-observer${local.name_state_forced[0]}"
-  name_state_replicator          = "iac-state-replicator${local.name_state_forced[0]}"
-  pointer_alias_state            = "/iac${local.name_state_forced[0]}/state-key"
-  pointer_name_lock              = "/iac${local.name_state_forced[0]}/state-lock-table"
-  pointer_name_state_bucket      = "/iac${local.name_state_forced[0]}/state-bucket"
-  state_bucket_replica_logs_name = strrev(local.namespaces[1])
-  state_bucket_replica_name      = strrev(local.namespaces[0])
+  alias_lock                 = "alias/iac-lock${local.name_state_forced[0]}"
+  alias_logs                 = "alias/iac-logs${local.name_state_forced[0]}"
+  alias_ssm                  = "alias/iac-ssm${local.name_state_forced[0]}"
+  alias_state                = "alias/iac-state${local.name_state_forced[0]}"
+  name_lock                  = "iac-state-lock${local.name_state_forced[0]}"
+  name_state_bucket          = local.namespaces[0]
+  name_state_bucket_replica  = strrev(local.namespaces[0])
+  name_state_logs            = local.namespaces[1]
+  name_state_logs_replica    = strrev(local.namespaces[1])
+  name_state_logs_replicator = "iac-state-logs-replicator${local.name_state_forced[0]}"
+  name_state_manager         = "iac-state-manager${local.name_state_forced[0]}"
+  name_state_observer        = "iac-state-observer${local.name_state_forced[0]}"
+  name_state_replicator      = "iac-state-replicator${local.name_state_forced[0]}"
+  pointer_alias_state        = "/iac${local.name_state_forced[0]}/state-key"
+  pointer_name_lock          = "/iac${local.name_state_forced[0]}/state-lock-table"
+  pointer_name_state_bucket  = "/iac${local.name_state_forced[0]}/state-bucket"
 }
 
 output "seed" {
@@ -151,12 +153,12 @@ output "s3" {
     }
     replica = {
       arn    = aws_s3_bucket.replica.arn,
-      id     = local.state_bucket_replica_name
+      id     = local.name_state_bucket_replica
       region = data.aws_region.replica.name
     }
     replica_logs = {
       arn    = aws_s3_bucket.replica_logs.arn
-      id     = local.state_bucket_replica_logs_name
+      id     = local.name_state_logs_replica
       region = data.aws_region.replica.name
     }
   }
@@ -285,6 +287,70 @@ resource "aws_kms_replica_key" "state_keystore" {
   deletion_window_in_days = 30
   policy                  = data.aws_iam_policy_document.state_key.json
   primary_key_arn         = aws_kms_key.state.arn
+  tags = {
+    origin = data.aws_caller_identity.current.account_id
+  }
+}
+
+data "aws_iam_policy_document" "logs_key" {
+  version   = "2012-10-17"
+  policy_id = "iac-logs"
+  statement {
+    sid    = "Baseline IAM Access"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "Initiator Access"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+}
+resource "aws_kms_key" "logs" {
+  description             = "IaC Logs Encryption Key"
+  deletion_window_in_days = 30
+  multi_region            = true
+  policy                  = data.aws_iam_policy_document.logs_key.json
+  enable_key_rotation     = true
+  tags = {
+    Name = "iac-logs"
+  }
+}
+resource "aws_kms_alias" "logs" {
+  target_key_id = aws_kms_key.logs.id
+  name          = local.alias_logs
+}
+resource "aws_kms_replica_key" "logs" {
+  provider                = aws.replica
+  description             = "IaC Logs Encryption Key Replica"
+  deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.logs_key.json
+  primary_key_arn         = aws_kms_key.logs.arn
+  tags = {
+    origin = data.aws_region.current.name
+  }
+}
+resource "aws_kms_alias" "logs_replica" {
+  provider      = aws.replica
+  target_key_id = aws_kms_replica_key.logs.id
+  name          = local.alias_logs
+}
+resource "aws_kms_replica_key" "logs_keystore" {
+  provider                = aws.keystore
+  description             = "IaC Logs Encryption Key Replica"
+  deletion_window_in_days = 30
+  policy                  = data.aws_iam_policy_document.logs_key.json
+  primary_key_arn         = aws_kms_key.logs.arn
   tags = {
     origin = data.aws_caller_identity.current.account_id
   }
@@ -432,7 +498,7 @@ resource "aws_s3_bucket" "state_logs" {
 }
 resource "aws_s3_bucket" "replica" {
   provider      = aws.replica
-  bucket        = local.state_bucket_replica_name
+  bucket        = local.name_state_bucket_replica
   force_destroy = true
   tags = {
     Name = "iac-state-replica"
@@ -440,7 +506,7 @@ resource "aws_s3_bucket" "replica" {
 }
 resource "aws_s3_bucket" "replica_logs" {
   provider      = aws.replica
-  bucket        = local.state_bucket_replica_logs_name
+  bucket        = local.name_state_logs_replica
   force_destroy = true
   tags = {
     Name = "iac-state-replica-logs"
@@ -598,7 +664,7 @@ data "aws_iam_policy_document" "replica_lockdown" {
       type        = "*"
       identifiers = ["*"]
     }
-    resources = ["arn:aws:s3:::${local.state_bucket_replica_name}/*"]
+    resources = ["arn:aws:s3:::${local.name_state_bucket_replica}/*"]
     sid       = "DenyWrite"
   }
   statement {
@@ -609,8 +675,8 @@ data "aws_iam_policy_document" "replica_lockdown" {
       identifiers = ["*"]
     }
     resources = [
-      "arn:aws:s3:::${local.state_bucket_replica_name}",
-      "arn:aws:s3:::${local.state_bucket_replica_name}/*"
+      "arn:aws:s3:::${local.name_state_bucket_replica}",
+      "arn:aws:s3:::${local.name_state_bucket_replica}/*"
     ]
     condition {
       test     = "Bool"
@@ -626,7 +692,7 @@ data "aws_iam_policy_document" "replica_lockdown" {
       type        = "*"
       identifiers = ["*"]
     }
-    resources = ["arn:aws:s3:::${local.state_bucket_replica_name}/*"]
+    resources = ["arn:aws:s3:::${local.name_state_bucket_replica}/*"]
     condition {
       test     = "ArnNotEqualsIfExists"
       values   = [aws_kms_key.state.arn, aws_kms_replica_key.state.arn]
@@ -638,7 +704,7 @@ data "aws_iam_policy_document" "replica_lockdown" {
 resource "aws_s3_bucket_policy" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica]
-  bucket     = local.state_bucket_replica_name
+  bucket     = local.name_state_bucket_replica
   policy     = data.aws_iam_policy_document.replica_lockdown.json
 }
 
@@ -653,7 +719,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
       type        = "Service"
       identifiers = ["logging.s3.amazonaws.com"]
     }
-    resources = ["arn:aws:s3:::${local.state_bucket_replica_logs_name}/*"]
+    resources = ["arn:aws:s3:::${local.name_state_logs_replica}/*"]
     condition {
       test     = "StringEquals"
       values   = [data.aws_caller_identity.current.account_id]
@@ -661,7 +727,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
     }
     condition {
       test     = "ArnLike"
-      values   = ["arn:aws:s3:::${local.state_bucket_replica_logs_name}"]
+      values   = ["arn:aws:s3:::${local.name_state_logs_replica}"]
       variable = "aws:SourceArn"
     }
     sid = "AllowPutObjectS3ServerAccessLogsPolicy"
@@ -673,7 +739,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
       type        = "Service"
       identifiers = ["logging.s3.amazonaws.com"]
     }
-    resources = ["arn:aws:s3:::${local.state_bucket_replica_logs_name}/*"]
+    resources = ["arn:aws:s3:::${local.name_state_logs_replica}/*"]
     condition {
       test     = "ForAllValues:StringNotEquals"
       values   = ["logging.s3.amazonaws.com"]
@@ -689,8 +755,8 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
       identifiers = ["*"]
     }
     resources = [
-      "arn:aws:s3:::${local.state_bucket_replica_logs_name}",
-      "arn:aws:s3:::${local.state_bucket_replica_logs_name}/*"
+      "arn:aws:s3:::${local.name_state_logs_replica}",
+      "arn:aws:s3:::${local.name_state_logs_replica}/*"
     ]
     condition {
       test     = "Bool"
@@ -703,7 +769,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
 resource "aws_s3_bucket_policy" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.state_logs]
-  bucket     = local.state_bucket_replica_logs_name
+  bucket     = local.name_state_logs_replica
   policy     = data.aws_iam_policy_document.replica_logs_lockdown.json
 }
 
@@ -713,7 +779,18 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
   rule {
     bucket_key_enabled = true
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.state.arn
+      kms_master_key_id = aws_kms_key.state.id
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+resource "aws_s3_bucket_server_side_encryption_configuration" "state_logs" {
+  depends_on = [aws_s3_bucket.state_logs]
+  bucket     = local.name_state_logs
+  rule {
+    bucket_key_enabled = true
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.logs.id
       sse_algorithm     = "aws:kms"
     }
   }
@@ -721,11 +798,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica]
-  bucket     = local.state_bucket_replica_name
+  bucket     = local.name_state_bucket_replica
   rule {
     bucket_key_enabled = true
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.state.arn
+      kms_master_key_id = aws_kms_replica_key.state.id
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+resource "aws_s3_bucket_server_side_encryption_configuration" "replica_logs" {
+  provider   = aws.replica
+  depends_on = [aws_s3_bucket.replica_logs]
+  bucket     = local.name_state_logs_replica
+  rule {
+    bucket_key_enabled = true
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_replica_key.logs.id
       sse_algorithm     = "aws:kms"
     }
   }
@@ -748,7 +837,7 @@ resource "aws_s3_bucket_versioning" "state_logs" {
 resource "aws_s3_bucket_versioning" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica]
-  bucket     = local.state_bucket_replica_name
+  bucket     = local.name_state_bucket_replica
   versioning_configuration {
     status = "Enabled"
   }
@@ -756,7 +845,7 @@ resource "aws_s3_bucket_versioning" "replica" {
 resource "aws_s3_bucket_versioning" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica_logs]
-  bucket     = local.state_bucket_replica_logs_name
+  bucket     = local.name_state_logs_replica
   versioning_configuration {
     status = "Enabled"
   }
@@ -795,7 +884,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
 resource "aws_s3_bucket_lifecycle_configuration" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica]
-  bucket     = local.state_bucket_replica_name
+  bucket     = local.name_state_bucket_replica
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -811,7 +900,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "replica" {
 resource "aws_s3_bucket_lifecycle_configuration" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica_logs]
-  bucket     = local.state_bucket_replica_logs_name
+  bucket     = local.name_state_logs_replica
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -844,7 +933,7 @@ resource "aws_s3_bucket_public_access_block" "state_logs" {
 resource "aws_s3_bucket_public_access_block" "replica" {
   provider                = aws.replica
   depends_on              = [aws_s3_bucket.replica]
-  bucket                  = local.state_bucket_replica_name
+  bucket                  = local.name_state_bucket_replica
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -853,7 +942,7 @@ resource "aws_s3_bucket_public_access_block" "replica" {
 resource "aws_s3_bucket_public_access_block" "replica_logs" {
   provider                = aws.replica
   depends_on              = [aws_s3_bucket.replica_logs]
-  bucket                  = local.state_bucket_replica_logs_name
+  bucket                  = local.name_state_logs_replica
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -877,7 +966,7 @@ resource "aws_s3_bucket_acl" "state" {
 resource "aws_s3_bucket_acl" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket_ownership_controls.replica]
-  bucket     = local.state_bucket_replica_name
+  bucket     = local.name_state_bucket_replica
   acl        = "private"
 }
 resource "aws_s3_bucket_acl" "state_logs" {
@@ -888,7 +977,7 @@ resource "aws_s3_bucket_acl" "state_logs" {
 resource "aws_s3_bucket_acl" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket_ownership_controls.replica_logs]
-  bucket     = local.state_bucket_replica_logs_name
+  bucket     = local.name_state_logs_replica
   acl        = "log-delivery-write"
 }
 
@@ -909,7 +998,7 @@ resource "aws_s3_bucket_ownership_controls" "state_logs" {
 resource "aws_s3_bucket_ownership_controls" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica_logs]
-  bucket     = local.state_bucket_replica_name
+  bucket     = local.name_state_bucket_replica
   rule {
     object_ownership = "BucketOwnerPreferred"
   }
@@ -917,7 +1006,7 @@ resource "aws_s3_bucket_ownership_controls" "replica" {
 resource "aws_s3_bucket_ownership_controls" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica_logs]
-  bucket     = local.state_bucket_replica_logs_name
+  bucket     = local.name_state_logs_replica
   rule {
     object_ownership = "BucketOwnerPreferred"
   }
@@ -932,9 +1021,9 @@ resource "aws_s3_bucket_logging" "state" {
 resource "aws_s3_bucket_logging" "replica" {
   provider      = aws.replica
   depends_on    = [aws_s3_bucket.replica, aws_s3_bucket.replica_logs]
-  bucket        = local.state_bucket_replica_name
-  target_bucket = local.state_bucket_replica_logs_name
-  target_prefix = "log/"
+  bucket        = local.name_state_bucket_replica
+  target_bucket = local.name_state_logs_replica
+  target_prefix = "log-replica/"
 }
 
 resource "aws_dynamodb_table" "lock" {
@@ -1047,6 +1136,7 @@ data "aws_iam_policy_document" "s3_assume_role" {
     sid = "S3AssumeRole"
   }
 }
+
 data "aws_iam_policy_document" "state_replicator" {
   version   = "2012-10-17"
   policy_id = "state-replication"
@@ -1115,7 +1205,6 @@ data "aws_iam_policy_document" "state_replicator" {
     }
   }
 }
-
 resource "aws_iam_policy" "state_replicator" {
   name   = local.name_state_replicator
   policy = data.aws_iam_policy_document.state_replicator.json
@@ -1140,7 +1229,7 @@ resource "aws_s3_bucket_replication_configuration" "state" {
         status = "Disabled"
       }
       sse_kms_encrypted_objects {
-        status = "Disabled"
+        status = "Enabled"
       }
     }
     delete_marker_replication {
@@ -1149,6 +1238,127 @@ resource "aws_s3_bucket_replication_configuration" "state" {
     filter {}
     destination {
       bucket        = aws_s3_bucket.replica.arn
+      storage_class = "STANDARD_IA"
+      encryption_configuration {
+        replica_kms_key_id = aws_kms_replica_key.state.arn
+      }
+      metrics {
+        event_threshold {
+          minutes = 15
+        }
+        status = "Enabled"
+      }
+      replication_time {
+        status = "Enabled"
+        time {
+          minutes = 15
+        }
+      }
+    }
+  }
+}
+
+data "aws_iam_policy_document" "state_logs_replicator" {
+  version   = "2012-10-17"
+  policy_id = "state-logs-replication"
+  statement {
+    actions = [
+      "s3:GetReplicationConfiguration",
+      "s3:ListBucket",
+    ]
+    effect    = "Allow"
+    resources = [aws_s3_bucket.state_logs.arn]
+    sid       = "SeeBucket"
+  }
+  statement {
+    actions = [
+      "s3:GetObjectVersionForReplication",
+      "s3:GetObjectVersionAcl",
+      "s3:GetObjectVersionTagging",
+    ]
+    effect    = "Allow"
+    resources = ["${aws_s3_bucket.state_logs.arn}/*"]
+    sid       = "GetVersioning"
+  }
+  statement {
+    actions = [
+      "s3:ReplicateObject",
+      "s3:ReplicateDelete",
+      "s3:ReplicateTags",
+    ]
+    effect    = "Allow"
+    resources = ["${aws_s3_bucket.replica_logs.arn}/*"]
+    sid       = "Replicate"
+  }
+  statement {
+    actions   = ["kms:Decrypt"]
+    effect    = "Allow"
+    resources = [aws_kms_key.state.arn]
+    sid       = "Decrypt"
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["${aws_s3_bucket.state_logs.arn}/*"]
+    }
+  }
+  statement {
+    actions = [
+      "kms:Encrypt",
+      "kms:GenerateDataKey"
+    ]
+    effect    = "Allow"
+    resources = [aws_kms_replica_key.logs.arn]
+    sid       = "ReEncrypt"
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["${aws_s3_bucket.state_logs.arn}/*"]
+    }
+  }
+}
+resource "aws_iam_policy" "state_logs_replicator" {
+  name   = local.name_state_logs_replicator
+  policy = data.aws_iam_policy_document.state_logs_replicator.json
+}
+resource "aws_iam_role" "state_logs_replicator" {
+  name               = local.name_state_logs_replicator
+  assume_role_policy = data.aws_iam_policy_document.s3_assume_role.json
+}
+resource "aws_iam_role_policy_attachment" "state_logs_replicator" {
+  role       = aws_iam_role.state_logs_replicator.name
+  policy_arn = aws_iam_policy.state_logs_replicator.arn
+}
+resource "aws_s3_bucket_replication_configuration" "state_logs" {
+  depends_on = [aws_s3_bucket_versioning.state_logs, aws_s3_bucket_versioning.replica_logs]
+  role       = aws_iam_role.state_logs_replicator.arn
+  bucket     = local.name_state_logs
+  rule {
+    id     = "main"
+    status = "Enabled"
+    source_selection_criteria {
+      replica_modifications {
+        status = "Disabled"
+      }
+      sse_kms_encrypted_objects {
+        status = "Enabled"
+      }
+    }
+    delete_marker_replication {
+      status = "Disabled"
+    }
+    filter {}
+    destination {
+      bucket        = aws_s3_bucket.replica_logs.arn
       storage_class = "STANDARD_IA"
       encryption_configuration {
         replica_kms_key_id = aws_kms_replica_key.state.arn
