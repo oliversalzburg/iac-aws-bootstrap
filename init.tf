@@ -249,7 +249,6 @@ data "aws_iam_policy_document" "state_key" {
   }
 }
 resource "aws_kms_key" "state" {
-
   description             = "IaC State Encryption Key"
   deletion_window_in_days = 30
   multi_region            = true
@@ -446,6 +445,64 @@ resource "aws_s3_bucket" "replica_logs" {
   }
 }
 
+data "aws_iam_policy_document" "state_lockdown" {
+  version   = "2012-10-17"
+  policy_id = "state-lockdown"
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_bucket}/*"]
+    condition {
+      test     = "Null"
+      values   = ["true"]
+      variable = "aws:MultiFactorAuthAge"
+    }
+    sid = "RequireMFARequest"
+  }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_bucket}/*"]
+    condition {
+      test     = "NumericGreaterThan"
+      values   = [3600]
+      variable = "aws:MultiFactorAuthAge"
+    }
+    sid = "RequireFreshMFA"
+  }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket}",
+      "arn:aws:s3:::${local.name_state_bucket}/*"
+    ]
+    condition {
+      test     = "Bool"
+      values   = ["false"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictToTLSRequestsOnly"
+  }
+}
+resource "aws_s3_bucket_policy" "state" {
+  depends_on = [aws_s3_bucket.state]
+  bucket     = local.name_state_bucket
+  policy     = data.aws_iam_policy_document.state_lockdown.json
+}
+
 data "aws_iam_policy_document" "replica_lockdown" {
   provider  = aws.replica
   version   = "2012-10-17"
@@ -462,6 +519,24 @@ data "aws_iam_policy_document" "replica_lockdown" {
     }
     resources = ["arn:aws:s3:::${local.state_bucket_replica_name}/*"]
     sid       = "DenyWrite"
+  }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.state_bucket_replica_name}",
+      "arn:aws:s3:::${local.state_bucket_replica_name}/*"
+    ]
+    condition {
+      test     = "Bool"
+      values   = ["false"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictToTLSRequestsOnly"
   }
 }
 resource "aws_s3_bucket_policy" "replica" {
