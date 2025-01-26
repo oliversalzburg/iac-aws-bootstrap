@@ -138,20 +138,24 @@ output "s3" {
   sensitive   = true
   value = {
     state = {
-      arn = aws_s3_bucket.state.arn,
-      id  = local.name_state_bucket
+      arn    = aws_s3_bucket.state.arn,
+      id     = local.name_state_bucket
+      region = data.aws_region.current.name
     }
     state_logs = {
-      arn = aws_s3_bucket.state_logs.arn,
-      id  = local.name_state_logs
+      arn    = aws_s3_bucket.state_logs.arn,
+      id     = local.name_state_logs
+      region = data.aws_region.current.name
     }
     replica = {
-      arn = aws_s3_bucket.replica.arn,
-      id  = local.state_bucket_replica_name
+      arn    = aws_s3_bucket.replica.arn,
+      id     = local.state_bucket_replica_name
+      region = data.aws_region.replica.name
     }
     replica_logs = {
-      arn = aws_s3_bucket.replica_logs.arn
-      id  = local.state_bucket_replica_logs_name
+      arn    = aws_s3_bucket.replica_logs.arn
+      id     = local.state_bucket_replica_logs_name
+      region = data.aws_region.replica.name
     }
   }
 }

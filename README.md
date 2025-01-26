@@ -34,6 +34,8 @@ Create an AWS CLI SSO profile for your account, or whatever you have to do to co
 terraform init
 terraform apply
 terraform output seed
+# Optional: Display a backend configuration.
+./display-backend.tf.sh
 ```
 
 > [!IMPORTANT]
