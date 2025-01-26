@@ -698,7 +698,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
     sid = "RestrictToTLSRequestsOnly"
   }
 }
-resource "aws_s3_bucket_policy" "replica_state_logs" {
+resource "aws_s3_bucket_policy" "replica_logs" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.state_logs]
   bucket     = local.state_bucket_replica_logs_name
