@@ -565,6 +565,24 @@ data "aws_iam_policy_document" "state_lockdown" {
     sid = "RestrictToTLSRequestsOnly"
   }
   statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket}",
+      "arn:aws:s3:::${local.name_state_bucket}/*"
+    ]
+    condition {
+      test     = "NumericLessThan"
+      values   = ["1.3"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictDeprecatedTLS"
+  }
+  statement {
     actions = ["s3:PutObject"]
     effect  = "Deny"
     principals {
@@ -642,6 +660,24 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
     }
     sid = "RestrictToTLSRequestsOnly"
   }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs}",
+      "arn:aws:s3:::${local.name_state_logs}/*"
+    ]
+    condition {
+      test     = "NumericLessThan"
+      values   = ["1.3"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictDeprecatedTLS"
+  }
 }
 resource "aws_s3_bucket_policy" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
@@ -684,6 +720,24 @@ data "aws_iam_policy_document" "replica_lockdown" {
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
+  }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket_replica}",
+      "arn:aws:s3:::${local.name_state_bucket_replica}/*"
+    ]
+    condition {
+      test     = "NumericLessThan"
+      values   = ["1.3"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictDeprecatedTLS"
   }
   statement {
     actions = ["s3:PutObject"]
@@ -764,6 +818,24 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
+  }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs_replica}",
+      "arn:aws:s3:::${local.name_state_logs_replica}/*"
+    ]
+    condition {
+      test     = "NumericLessThan"
+      values   = ["1.3"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictDeprecatedTLS"
   }
 }
 resource "aws_s3_bucket_policy" "replica_logs" {
