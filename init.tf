@@ -458,7 +458,7 @@ data "aws_iam_policy_document" "state_lockdown" {
     resources = ["arn:aws:s3:::${local.name_state_bucket}/*"]
     condition {
       test     = "Null"
-      values   = ["true"]
+      values   = [true]
       variable = "aws:MultiFactorAuthAge"
     }
     sid = "RequireMFARequest"
@@ -491,7 +491,7 @@ data "aws_iam_policy_document" "state_lockdown" {
     ]
     condition {
       test     = "Bool"
-      values   = ["false"]
+      values   = [false]
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
@@ -522,6 +522,41 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
   version   = "2012-10-17"
   policy_id = "state-logs-lockdown"
   statement {
+    actions = ["s3:PutObject"]
+    effect  = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_logs}/*"]
+    condition {
+      test     = "StringEquals"
+      values   = [data.aws_caller_identity.current.account_id]
+      variable = "aws:SourceAccount"
+    }
+    condition {
+      test     = "ArnLike"
+      values   = ["arn:aws:s3:::${local.name_state_logs}"]
+      variable = "aws:SourceArn"
+    }
+    sid = "AllowPutObjectS3ServerAccessLogsPolicy"
+  }
+  statement {
+    actions = ["s3:PutObject"]
+    effect  = "Deny"
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_logs}/*"]
+    condition {
+      test     = "ForAllValues:StringNotEquals"
+      values   = ["logging.s3.amazonaws.com"]
+      variable = "aws:PrincipalServiceNamesList"
+    }
+    sid = "RestrictToS3ServerAccessLogs"
+  }
+  statement {
     actions = ["s3:*"]
     effect  = "Deny"
     principals {
@@ -534,7 +569,7 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
     ]
     condition {
       test     = "Bool"
-      values   = ["false"]
+      values   = [false]
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
@@ -553,7 +588,8 @@ data "aws_iam_policy_document" "replica_lockdown" {
   statement {
     actions = [
       "s3:DeleteObject",
-      "s3:PutObject"
+      "s3:DeleteObjectVersion",
+      "s3:PutObject",
     ]
     effect = "Deny"
     principals {
@@ -576,7 +612,7 @@ data "aws_iam_policy_document" "replica_lockdown" {
     ]
     condition {
       test     = "Bool"
-      values   = ["false"]
+      values   = [false]
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
@@ -609,6 +645,41 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
   version   = "2012-10-17"
   policy_id = "replica-logs-lockdown"
   statement {
+    actions = ["s3:PutObject"]
+    effect  = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+    resources = ["arn:aws:s3:::${local.state_bucket_replica_logs_name}/*"]
+    condition {
+      test     = "StringEquals"
+      values   = [data.aws_caller_identity.current.account_id]
+      variable = "aws:SourceAccount"
+    }
+    condition {
+      test     = "ArnLike"
+      values   = ["arn:aws:s3:::${local.state_bucket_replica_logs_name}"]
+      variable = "aws:SourceArn"
+    }
+    sid = "AllowPutObjectS3ServerAccessLogsPolicy"
+  }
+  statement {
+    actions = ["s3:PutObject"]
+    effect  = "Deny"
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+    resources = ["arn:aws:s3:::${local.state_bucket_replica_logs_name}/*"]
+    condition {
+      test     = "ForAllValues:StringNotEquals"
+      values   = ["logging.s3.amazonaws.com"]
+      variable = "aws:PrincipalServiceNamesList"
+    }
+    sid = "RestrictToS3ServerAccessLogs"
+  }
+  statement {
     actions = ["s3:*"]
     effect  = "Deny"
     principals {
@@ -621,7 +692,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
     ]
     condition {
       test     = "Bool"
-      values   = ["false"]
+      values   = [false]
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
