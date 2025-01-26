@@ -935,21 +935,21 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
 
 resource "aws_ssm_parameter" "state_bucket" {
   name        = local.pointer_name_state_bucket
-  type        = "String"
+  type        = "SecureString"
   description = "Bucket used for IaC S3 backend deployment(s)."
   value       = local.name_state_bucket
   key_id      = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "state_bucket_key" {
   name        = local.pointer_alias_state
-  type        = "String"
+  type        = "SecureString"
   description = "KMS key used for S3 backend encryption."
   value       = local.alias_state
   key_id      = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "lock_table" {
   name        = local.pointer_name_lock
-  type        = "String"
+  type        = "SecureString"
   description = "DynamoDB locking table used for IaC S3 backend deployment(s)."
   value       = aws_dynamodb_table.lock.id
   key_id      = aws_kms_key.ssm.id
