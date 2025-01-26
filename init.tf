@@ -496,11 +496,54 @@ data "aws_iam_policy_document" "state_lockdown" {
     }
     sid = "RestrictToTLSRequestsOnly"
   }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_bucket}/*"]
+    condition {
+      test     = "ArnNotEqualsIfExists"
+      values   = [aws_kms_key.state.arn]
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+    }
+    sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
+  }
 }
 resource "aws_s3_bucket_policy" "state" {
   depends_on = [aws_s3_bucket.state]
   bucket     = local.name_state_bucket
   policy     = data.aws_iam_policy_document.state_lockdown.json
+}
+
+data "aws_iam_policy_document" "state_logs_lockdown" {
+  version   = "2012-10-17"
+  policy_id = "state-logs-lockdown"
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs}",
+      "arn:aws:s3:::${local.name_state_logs}/*"
+    ]
+    condition {
+      test     = "Bool"
+      values   = ["false"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictToTLSRequestsOnly"
+  }
+}
+resource "aws_s3_bucket_policy" "state_logs" {
+  depends_on = [aws_s3_bucket.state_logs]
+  bucket     = local.name_state_logs
+  policy     = data.aws_iam_policy_document.state_logs_lockdown.json
 }
 
 data "aws_iam_policy_document" "replica_lockdown" {
@@ -538,12 +581,57 @@ data "aws_iam_policy_document" "replica_lockdown" {
     }
     sid = "RestrictToTLSRequestsOnly"
   }
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.state_bucket_replica_name}/*"]
+    condition {
+      test     = "ArnNotEqualsIfExists"
+      values   = [aws_kms_key.state.arn, aws_kms_replica_key.state.arn]
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+    }
+    sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
+  }
 }
 resource "aws_s3_bucket_policy" "replica" {
   provider   = aws.replica
   depends_on = [aws_s3_bucket.replica]
   bucket     = local.state_bucket_replica_name
   policy     = data.aws_iam_policy_document.replica_lockdown.json
+}
+
+data "aws_iam_policy_document" "replica_logs_lockdown" {
+  provider  = aws.replica
+  version   = "2012-10-17"
+  policy_id = "replica-logs-lockdown"
+  statement {
+    actions = ["s3:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [
+      "arn:aws:s3:::${local.state_bucket_replica_logs_name}",
+      "arn:aws:s3:::${local.state_bucket_replica_logs_name}/*"
+    ]
+    condition {
+      test     = "Bool"
+      values   = ["false"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictToTLSRequestsOnly"
+  }
+}
+resource "aws_s3_bucket_policy" "replica_state_logs" {
+  provider   = aws.replica
+  depends_on = [aws_s3_bucket.state_logs]
+  bucket     = local.state_bucket_replica_logs_name
+  policy     = data.aws_iam_policy_document.replica_logs_lockdown.json
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
