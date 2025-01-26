@@ -2,9 +2,6 @@
 
 Terraform remote state backend on AWS, using discovery-resistant naming patterns and ephemeral local states.
 
-> [!CAUTION]
-> **Extremely opinionated solution ahead!**
-
 - Single file ignition.
 - Globally addressable resource names (S3) are fully randomized.
 - State store and lock table reside in home region.
