@@ -104,7 +104,7 @@ import {
 }
 
 import {
-  to = aws_s3_bucket_replication_configuration.replication
+  to = aws_s3_bucket_replication_configuration.state
   id = local.name_state_bucket
 }
 
@@ -229,11 +229,11 @@ import {
   id = "arn:${data.aws_partition.current.id}:iam::${data.aws_caller_identity.current.account_id}:policy/${local.name_state_manager}"
 }
 import {
-  to = aws_iam_policy.replication
+  to = aws_iam_policy.state_replicator
   id = "arn:${data.aws_partition.current.id}:iam::${data.aws_caller_identity.current.account_id}:policy/${local.name_state_replicator}"
 }
 import {
-  to = aws_iam_role.replication
+  to = aws_iam_role.state_replicator
   id = local.name_state_replicator
 }
 
