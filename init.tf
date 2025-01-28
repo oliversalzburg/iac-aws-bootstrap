@@ -115,19 +115,19 @@ output "kms" {
   Details about Server-Side-Encryption keys for created resources.
   EOT
   value = {
-    iac_state = {
+    state = {
       alias  = aws_kms_alias.state.id
       arn    = aws_kms_key.state.arn
       id     = aws_kms_key.state.id
       key_id = aws_kms_key.state.key_id
     }
-    iac_state_replica = {
+    state_replica = {
       alias  = aws_kms_alias.state_replica.id
       arn    = aws_kms_replica_key.state.arn
       id     = aws_kms_replica_key.state.id
       key_id = aws_kms_replica_key.state.key_id
     }
-    iac_state_keystore = {
+    state_keystore = {
       arn    = aws_kms_replica_key.state_keystore.arn
       id     = aws_kms_replica_key.state_keystore.id
       key_id = aws_kms_replica_key.state_keystore.key_id
@@ -678,6 +678,21 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
     }
     sid = "RestrictDeprecatedTLS"
   }
+  statement {
+    actions = ["s3:PutObject"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_logs}/*"]
+    condition {
+      test     = "ArnNotEqualsIfExists"
+      values   = [aws_kms_key.logs.arn]
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+    }
+    sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
+  }
 }
 resource "aws_s3_bucket_policy" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
@@ -837,6 +852,21 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
     }
     sid = "RestrictDeprecatedTLS"
   }
+  statement {
+    actions = ["s3:PutObject"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = ["arn:aws:s3:::${local.name_state_logs_replica}/*"]
+    condition {
+      test     = "ArnNotEqualsIfExists"
+      values   = [aws_kms_key.logs.arn]
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+    }
+    sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
+  }
 }
 resource "aws_s3_bucket_policy" "replica_logs" {
   provider   = aws.replica
@@ -947,6 +977,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
   bucket     = local.name_state_logs
   rule {
     id = "expire-history"
+    expiration {
+      days = 30
+    }
     noncurrent_version_expiration {
       noncurrent_days = 30
     }
@@ -975,6 +1008,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "replica_logs" {
   bucket     = local.name_state_logs_replica
   rule {
     id = "expire-history"
+    expiration {
+      days = 30
+    }
     noncurrent_version_transition {
       noncurrent_days = 60
       storage_class   = "GLACIER"
@@ -1189,15 +1225,36 @@ resource "aws_iam_policy" "state_observer" {
   description = "Allows reading the IaC state."
   policy      = data.aws_iam_policy_document.state_observer.json
 }
+resource "aws_iam_role" "state_observer" {
+  name               = local.name_state_observer
+  assume_role_policy = data.aws_iam_policy_document.assume_role_caller.json
+}
 resource "aws_iam_policy" "state_manager" {
   name        = local.name_state_manager
   description = "Allows writing the IaC state."
   policy      = data.aws_iam_policy_document.state_manager.json
 }
+resource "aws_iam_role" "state_manager" {
+  name               = local.name_state_manager
+  assume_role_policy = data.aws_iam_policy_document.assume_role_caller.json
+}
 
-data "aws_iam_policy_document" "s3_assume_role" {
+data "aws_iam_policy_document" "assume_role_caller" {
   version   = "2012-10-17"
-  policy_id = "s3-assume-role"
+  policy_id = "assume-role-caller"
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    sid = "CallerAssumeRole"
+  }
+}
+data "aws_iam_policy_document" "assume_role_s3" {
+  version   = "2012-10-17"
+  policy_id = "assume-role-s3"
   statement {
     actions = ["sts:AssumeRole"]
     effect  = "Allow"
@@ -1283,7 +1340,7 @@ resource "aws_iam_policy" "state_replicator" {
 }
 resource "aws_iam_role" "state_replicator" {
   name               = local.name_state_replicator
-  assume_role_policy = data.aws_iam_policy_document.s3_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.assume_role_s3.json
 }
 resource "aws_iam_role_policy_attachment" "state_replicator" {
   role       = aws_iam_role.state_replicator.name
@@ -1404,7 +1461,7 @@ resource "aws_iam_policy" "state_logs_replicator" {
 }
 resource "aws_iam_role" "state_logs_replicator" {
   name               = local.name_state_logs_replicator
-  assume_role_policy = data.aws_iam_policy_document.s3_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.assume_role_s3.json
 }
 resource "aws_iam_role_policy_attachment" "state_logs_replicator" {
   role       = aws_iam_role.state_logs_replicator.name

@@ -4,11 +4,10 @@ Terraform remote state backend on AWS, using discovery-resistant naming patterns
 
 - Single file ignition.
 - Globally addressable resource names (S3) are fully randomized.
-- State store and lock table reside in home region.
-- State store and lock table are encrypted with multi-region KMS key.
-- Resulting identifiers are stored in KMS encrypted SSM parameters.
+- State store and lock table reside in home region, and are encrypted with multi-region KMS key.
 - State, lock, and keys are replicated to secondary region.  
   Keys are additionally replicated to a "keystore region".
+- Resulting identifiers are stored in KMS encrypted SSM parameters.
 - State and replica have distinct log buckets in their respective regions.  
   Logs are encrypted and replicated cross-region.
 - State version history and log history are maintained through lifecycle management.
@@ -18,7 +17,7 @@ Terraform remote state backend on AWS, using discovery-resistant naming patterns
 > - Require state requests to originate from MFA-authenticated sessions.
 > - Require all requests to use TLS v1.3 (or better).
 > - Prevent all PUT and DELETE requests on replication targets.
-> - Require non-logging objects to be encrypted exclusively with our key.
+> - Require all objects to be encrypted exclusively with our key.
 > - The primary state store additionally requires MFA-authenticated sessions to not be older than 1 hour.
 
 Out of scope (for now):
@@ -88,7 +87,7 @@ Expect success
 
 ```shell
 # Write flag to state bucket
-echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms --sse-kms-key-id=$(terraform output -json kms | jq --raw-output '.state.id')
 # Verify
 aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt -
 ```
@@ -99,7 +98,7 @@ Expect success
 
 ```shell
 # Write flag to state bucket
-echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms --sse-kms-key-id=$(terraform output -json kms | jq --raw-output '.state.id')
 # Verify on replica
 aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt -
 ```
@@ -152,6 +151,8 @@ No modules.
 | [aws_iam_policy.state_observer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_iam_policy.state_replicator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_iam_role.state_logs_replicator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role.state_manager](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role.state_observer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.state_replicator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy_attachment.state_logs_replicator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.state_replicator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
@@ -218,11 +219,12 @@ No modules.
 | [aws_ssm_parameter.state_bucket_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
 | [random_id.seed](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
+| [aws_iam_policy_document.assume_role_caller](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.assume_role_s3](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.lock_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.logs_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.replica_lockdown](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.replica_logs_lockdown](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
-| [aws_iam_policy_document.s3_assume_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.ssm_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.state_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.state_lockdown](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
