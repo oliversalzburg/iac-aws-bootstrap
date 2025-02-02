@@ -65,7 +65,7 @@ resource "random_id" "seed" {
 }
 
 locals {
-  seed_base    = sensitive(lower(replace(random_id.seed.b64_url, "_", "-")))
+  seed_base    = lower(replace(random_id.seed.b64_url, "_", "-"))
   seed_padding = split("", strrev(replace(local.seed_base, "-", "")))
   seed_derived = sha512(local.seed_base)
 
