@@ -232,7 +232,7 @@ data "aws_iam_policy_document" "state_key" {
   version   = "2012-10-17"
   policy_id = "iac-state"
   statement {
-    sid    = "Baseline IAM Access"
+    sid    = "BaselineIAMAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -242,7 +242,7 @@ data "aws_iam_policy_document" "state_key" {
     resources = ["*"]
   }
   statement {
-    sid    = "Initiator Access"
+    sid    = "InitiatorAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -317,7 +317,7 @@ data "aws_iam_policy_document" "logs_key" {
   version   = "2012-10-17"
   policy_id = "iac-logs"
   statement {
-    sid    = "Baseline IAM Access"
+    sid    = "BaselineIAMAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -327,7 +327,7 @@ data "aws_iam_policy_document" "logs_key" {
     resources = ["*"]
   }
   statement {
-    sid    = "Initiator Access"
+    sid    = "InitiatorAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -402,7 +402,7 @@ data "aws_iam_policy_document" "lock_key" {
   version   = "2012-10-17"
   policy_id = "iac-lock"
   statement {
-    sid    = "Baseline IAM Access"
+    sid    = "BaselineIAMAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -412,7 +412,7 @@ data "aws_iam_policy_document" "lock_key" {
     resources = ["*"]
   }
   statement {
-    sid    = "Initiator Access"
+    sid    = "InitiatorAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -485,7 +485,7 @@ data "aws_iam_policy_document" "ssm_key" {
   version   = "2012-10-17"
   policy_id = "iac-ssm"
   statement {
-    sid    = "Baseline IAM Access"
+    sid    = "BaselineIAMAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -495,7 +495,7 @@ data "aws_iam_policy_document" "ssm_key" {
     resources = ["*"]
   }
   statement {
-    sid    = "Initiator Access"
+    sid    = "InitiatorAccess"
     effect = "Allow"
     principals {
       type        = "AWS"
@@ -693,6 +693,32 @@ data "aws_iam_policy_document" "state_lockdown" {
     }
     sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
   }
+  statement {
+    sid    = "BaselineIAMAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket}",
+      "arn:aws:s3:::${local.name_state_bucket}/*"
+    ]
+  }
+  statement {
+    sid    = "InitiatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket}",
+      "arn:aws:s3:::${local.name_state_bucket}/*"
+    ]
+  }
 }
 resource "aws_s3_bucket_policy" "state" {
   depends_on = [aws_s3_bucket.state]
@@ -789,6 +815,32 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
     }
     sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
   }
+  statement {
+    sid    = "BaselineIAMAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs}",
+      "arn:aws:s3:::${local.name_state_logs}/*"
+    ]
+  }
+  statement {
+    sid    = "InitiatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs}",
+      "arn:aws:s3:::${local.name_state_logs}/*"
+    ]
+  }
 }
 resource "aws_s3_bucket_policy" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
@@ -864,6 +916,32 @@ data "aws_iam_policy_document" "replica_lockdown" {
       variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
     }
     sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
+  }
+  statement {
+    sid    = "BaselineIAMAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket_replica}",
+      "arn:aws:s3:::${local.name_state_bucket_replica}/*"
+    ]
+  }
+  statement {
+    sid    = "InitiatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket_replica}",
+      "arn:aws:s3:::${local.name_state_bucket_replica}/*"
+    ]
   }
 }
 resource "aws_s3_bucket_policy" "replica" {
@@ -962,6 +1040,32 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
       variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
     }
     sid = "DenyObjectsThatAreNotSSEKMSWithSpecificKey"
+  }
+  statement {
+    sid    = "BaselineIAMAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs_replica}",
+      "arn:aws:s3:::${local.name_state_logs_replica}/*"
+    ]
+  }
+  statement {
+    sid    = "InitiatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs_replica}",
+      "arn:aws:s3:::${local.name_state_logs_replica}/*"
+    ]
   }
 }
 resource "aws_s3_bucket_policy" "replica_logs" {
@@ -1294,6 +1398,26 @@ data "aws_iam_policy_document" "lock_lockdown" {
     }
     sid = "RestrictDeprecatedTLS"
   }
+  statement {
+    sid    = "BaselineIAMAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["dynamodb:*"]
+    resources = ["arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"]
+  }
+  statement {
+    sid    = "InitiatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions   = ["dynamodb:*"]
+    resources = ["arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"]
+  }
 }
 resource "aws_dynamodb_resource_policy" "lock" {
   depends_on                          = [aws_dynamodb_table.lock]
@@ -1337,6 +1461,26 @@ data "aws_iam_policy_document" "lock_replica_lockdown" {
       variable = "aws:SecureTransport"
     }
     sid = "RestrictDeprecatedTLS"
+  }
+  statement {
+    sid    = "BaselineIAMAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["dynamodb:*"]
+    resources = ["arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.replica.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"]
+  }
+  statement {
+    sid    = "InitiatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = [data.aws_caller_identity.current.arn]
+    }
+    actions   = ["dynamodb:*"]
+    resources = ["arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.replica.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"]
   }
 }
 resource "aws_dynamodb_resource_policy" "lock_replica" {
