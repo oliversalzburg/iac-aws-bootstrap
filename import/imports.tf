@@ -22,6 +22,14 @@ import {
   to = aws_kms_alias.ssm_replica
   id = local.alias_ssm
 }
+import {
+  to = aws_kms_alias.logs
+  id = local.alias_logs
+}
+import {
+  to = aws_kms_alias.logs_replica
+  id = local.alias_logs
+}
 
 import {
   to = aws_kms_key.state
@@ -30,6 +38,10 @@ import {
 import {
   to = aws_kms_key.lock
   id = data.aws_kms_key.lock.id
+}
+import {
+  to = aws_kms_key.logs
+  id = data.aws_kms_key.logs.id
 }
 import {
   to = aws_kms_key.ssm
@@ -44,6 +56,10 @@ import {
   id = data.aws_kms_key.lock.id
 }
 import {
+  to = aws_kms_replica_key.logs
+  id = data.aws_kms_key.logs.id
+}
+import {
   to = aws_kms_replica_key.ssm
   id = data.aws_kms_key.ssm.id
 }
@@ -54,6 +70,10 @@ import {
 import {
   to = aws_kms_replica_key.lock_keystore
   id = data.aws_kms_key.lock.id
+}
+import {
+  to = aws_kms_replica_key.logs_keystore
+  id = data.aws_kms_key.logs.id
 }
 import {
   to = aws_kms_replica_key.ssm_keystore
@@ -102,10 +122,22 @@ import {
   to = aws_s3_bucket_server_side_encryption_configuration.replica
   id = local.name_state_bucket_replica
 }
+import {
+  to = aws_s3_bucket_server_side_encryption_configuration.state_logs
+  id = local.name_state_logs
+}
+import {
+  to = aws_s3_bucket_server_side_encryption_configuration.replica_logs
+  id = local.name_state_logs_replica
+}
 
 import {
   to = aws_s3_bucket_replication_configuration.state
   id = local.name_state_bucket
+}
+import {
+  to = aws_s3_bucket_replication_configuration.state_logs
+  id = local.name_state_logs
 }
 
 import {
@@ -187,6 +219,15 @@ import {
 }
 
 import {
+  to = aws_dynamodb_resource_policy.lock
+  id = "arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"
+}
+import {
+  to = aws_dynamodb_resource_policy.lock_replica
+  id = "arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.replica.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"
+}
+
+import {
   to = aws_s3_bucket_lifecycle_configuration.state
   id = local.name_state_bucket
 }
@@ -205,19 +246,19 @@ import {
 
 import {
   to = aws_s3_bucket_acl.state
-  id = local.name_state_bucket
+  id = "${local.name_state_bucket},private"
 }
 import {
   to = aws_s3_bucket_acl.state_logs
-  id = local.name_state_logs
+  id = "${local.name_state_logs},log-delivery-write"
 }
 import {
   to = aws_s3_bucket_acl.replica
-  id = local.name_state_bucket_replica
+  id = "${local.name_state_bucket_replica},private"
 }
 import {
   to = aws_s3_bucket_acl.replica_logs
-  id = local.name_state_logs_replica
+  id = "${local.name_state_logs_replica},log-delivery-write"
 }
 
 import {
@@ -233,8 +274,34 @@ import {
   id = "arn:${data.aws_partition.current.id}:iam::${data.aws_caller_identity.current.account_id}:policy/${local.name_state_replicator}"
 }
 import {
+  to = aws_iam_policy.state_logs_replicator
+  id = "arn:${data.aws_partition.current.id}:iam::${data.aws_caller_identity.current.account_id}:policy/${local.name_state_logs_replicator}"
+}
+
+import {
+  to = aws_iam_role.state_observer
+  id = local.name_state_observer
+}
+import {
+  to = aws_iam_role.state_manager
+  id = local.name_state_manager
+}
+import {
   to = aws_iam_role.state_replicator
   id = local.name_state_replicator
+}
+import {
+  to = aws_iam_role.state_logs_replicator
+  id = local.name_state_logs_replicator
+}
+
+import {
+  to = aws_iam_role_policy_attachment.state_replicator
+  id = "${local.name_state_replicator}/arn:${data.aws_partition.current.id}:iam::${data.aws_caller_identity.current.account_id}:policy/${local.name_state_replicator}"
+}
+import {
+  to = aws_iam_role_policy_attachment.state_logs_replicator
+  id = "${local.name_state_logs_replicator}/arn:${data.aws_partition.current.id}:iam::${data.aws_caller_identity.current.account_id}:policy/${local.name_state_logs_replicator}"
 }
 
 import {

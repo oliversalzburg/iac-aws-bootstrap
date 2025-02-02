@@ -12,6 +12,13 @@ data "aws_kms_key" "lock" {
   key_id = data.aws_kms_alias.lock.target_key_id
 }
 
+data "aws_kms_alias" "logs" {
+  name = local.alias_logs
+}
+data "aws_kms_key" "logs" {
+  key_id = data.aws_kms_alias.logs.target_key_id
+}
+
 data "aws_kms_alias" "ssm" {
   name = local.alias_ssm
 }
