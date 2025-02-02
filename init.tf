@@ -1165,6 +1165,87 @@ resource "aws_dynamodb_table_replica" "lock" {
   point_in_time_recovery = true
 }
 
+data "aws_iam_policy_document" "lock_lockdown" {
+  version   = "2012-10-17"
+  policy_id = "lock-lockdown"
+  statement {
+    actions = ["dynamodb:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [aws_dynamodb_table.lock.arn]
+    condition {
+      test     = "Bool"
+      values   = [false]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictToTLSRequestsOnly"
+  }
+  statement {
+    actions = ["dynamodb:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [aws_dynamodb_table.lock.arn]
+    condition {
+      test     = "NumericLessThan"
+      values   = ["1.3"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictDeprecatedTLS"
+  }
+}
+resource "aws_dynamodb_resource_policy" "lock" {
+  depends_on   = [aws_dynamodb_table.lock]
+  resource_arn = aws_dynamodb_table.lock.arn
+  policy       = data.aws_iam_policy_document.lock_lockdown.json
+}
+data "aws_iam_policy_document" "lock_replica_lockdown" {
+  provider  = aws.replica
+  version   = "2012-10-17"
+  policy_id = "lock-lockdown"
+  statement {
+    actions = ["dynamodb:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [aws_dynamodb_table_replica.lock.arn]
+    condition {
+      test     = "Bool"
+      values   = [false]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictToTLSRequestsOnly"
+  }
+  statement {
+    actions = ["dynamodb:*"]
+    effect  = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    resources = [aws_dynamodb_table_replica.lock.arn]
+    condition {
+      test     = "NumericLessThan"
+      values   = ["1.3"]
+      variable = "aws:SecureTransport"
+    }
+    sid = "RestrictDeprecatedTLS"
+  }
+}
+resource "aws_dynamodb_resource_policy" "lock_replica" {
+  provider  = aws.replica
+  depends_on   = [aws_dynamodb_table_replica.lock]
+  resource_arn = aws_dynamodb_table_replica.lock.arn
+  policy       = data.aws_iam_policy_document.lock_replica_lockdown.json
+}
+
 data "aws_iam_policy_document" "state_observer" {
   version   = "2012-10-17"
   policy_id = "iac-state-observer"

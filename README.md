@@ -4,7 +4,7 @@ Terraform remote state backend on AWS, using discovery-resistant naming patterns
 
 - Single file ignition.
 - Globally addressable resource names (S3) are fully randomized.
-- State store and lock table reside in home region, and are encrypted with multi-region KMS key.
+- State store and lock table reside in home region, and are encrypted with customer managed multi-region KMS keys.
 - State, lock, and keys are replicated to secondary region.  
   Keys are additionally replicated to a "keystore region".
 - Resulting identifiers are stored in KMS encrypted SSM parameters.
@@ -62,7 +62,9 @@ Restore the state by providing the seed that was used to create it.
 ```shell
 cd import
 terraform init
-terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+# Ensure AWS_PROFILE and AWS_REGION are set appropriately.
+# Prefix command with space to prevent history entry.
+ terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
 terraform apply
 ```
 
@@ -77,7 +79,7 @@ Expect success
 terraform output -json seed | jq --raw-output '.id'
 # Delete state.
 rm *.tfstate*
-terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+ terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
 terraform apply
 ```
 
