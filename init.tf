@@ -253,7 +253,6 @@ data "aws_iam_policy_document" "state_key" {
   }
 }
 resource "aws_kms_key" "state" {
-  description                        = "IaC State Encryption Key"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
@@ -265,9 +264,6 @@ resource "aws_kms_key" "state" {
       bypass_policy_lockout_safety_check
     ]
   }
-  tags = {
-    Name = "iac-state"
-  }
 }
 resource "aws_kms_alias" "state" {
   target_key_id = aws_kms_key.state.id
@@ -275,7 +271,6 @@ resource "aws_kms_alias" "state" {
 }
 resource "aws_kms_replica_key" "state" {
   provider                           = aws.replica
-  description                        = "IaC State Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.state_key.json
@@ -285,9 +280,6 @@ resource "aws_kms_replica_key" "state" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_region.current.name
   }
 }
 resource "aws_kms_alias" "state_replica" {
@@ -297,7 +289,6 @@ resource "aws_kms_alias" "state_replica" {
 }
 resource "aws_kms_replica_key" "state_keystore" {
   provider                           = aws.keystore
-  description                        = "IaC State Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.state_key.json
@@ -307,9 +298,6 @@ resource "aws_kms_replica_key" "state_keystore" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_caller_identity.current.account_id
   }
 }
 
@@ -338,7 +326,6 @@ data "aws_iam_policy_document" "logs_key" {
   }
 }
 resource "aws_kms_key" "logs" {
-  description                        = "IaC Logs Encryption Key"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
@@ -350,9 +337,6 @@ resource "aws_kms_key" "logs" {
       bypass_policy_lockout_safety_check
     ]
   }
-  tags = {
-    Name = "iac-logs"
-  }
 }
 resource "aws_kms_alias" "logs" {
   target_key_id = aws_kms_key.logs.id
@@ -360,7 +344,6 @@ resource "aws_kms_alias" "logs" {
 }
 resource "aws_kms_replica_key" "logs" {
   provider                           = aws.replica
-  description                        = "IaC Logs Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.logs_key.json
@@ -370,9 +353,6 @@ resource "aws_kms_replica_key" "logs" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_region.current.name
   }
 }
 resource "aws_kms_alias" "logs_replica" {
@@ -382,7 +362,6 @@ resource "aws_kms_alias" "logs_replica" {
 }
 resource "aws_kms_replica_key" "logs_keystore" {
   provider                           = aws.keystore
-  description                        = "IaC Logs Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.logs_key.json
@@ -392,9 +371,6 @@ resource "aws_kms_replica_key" "logs_keystore" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_caller_identity.current.account_id
   }
 }
 
@@ -423,7 +399,6 @@ data "aws_iam_policy_document" "lock_key" {
   }
 }
 resource "aws_kms_key" "lock" {
-  description                        = "IaC Lock Encryption Key"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
@@ -435,9 +410,6 @@ resource "aws_kms_key" "lock" {
       bypass_policy_lockout_safety_check
     ]
   }
-  tags = {
-    Name = "iac-lock"
-  }
 }
 resource "aws_kms_alias" "lock" {
   target_key_id = aws_kms_key.lock.id
@@ -445,7 +417,6 @@ resource "aws_kms_alias" "lock" {
 }
 resource "aws_kms_replica_key" "lock" {
   provider                           = aws.replica
-  description                        = "IaC Lock Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   primary_key_arn                    = aws_kms_key.lock.arn
@@ -454,9 +425,6 @@ resource "aws_kms_replica_key" "lock" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_region.current.name
   }
 }
 resource "aws_kms_alias" "lock_replica" {
@@ -466,7 +434,6 @@ resource "aws_kms_alias" "lock_replica" {
 }
 resource "aws_kms_replica_key" "lock_keystore" {
   provider                           = aws.keystore
-  description                        = "IaC Lock Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   primary_key_arn                    = aws_kms_key.lock.arn
@@ -475,9 +442,6 @@ resource "aws_kms_replica_key" "lock_keystore" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_caller_identity.current.account_id
   }
 }
 
@@ -506,7 +470,6 @@ data "aws_iam_policy_document" "ssm_key" {
   }
 }
 resource "aws_kms_key" "ssm" {
-  description                        = "IaC SSM Encryption Key"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
@@ -518,9 +481,6 @@ resource "aws_kms_key" "ssm" {
       bypass_policy_lockout_safety_check
     ]
   }
-  tags = {
-    Name = "iac-ssm"
-  }
 }
 resource "aws_kms_alias" "ssm" {
   target_key_id = aws_kms_key.ssm.id
@@ -528,7 +488,6 @@ resource "aws_kms_alias" "ssm" {
 }
 resource "aws_kms_replica_key" "ssm" {
   provider                           = aws.replica
-  description                        = "IaC SSM Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.ssm_key.json
@@ -538,9 +497,6 @@ resource "aws_kms_replica_key" "ssm" {
       deletion_window_in_days,
       bypass_policy_lockout_safety_check
     ]
-  }
-  tags = {
-    origin = data.aws_region.current.name
   }
 }
 resource "aws_kms_alias" "ssm_replica" {
@@ -550,7 +506,6 @@ resource "aws_kms_alias" "ssm_replica" {
 }
 resource "aws_kms_replica_key" "ssm_keystore" {
   provider                           = aws.keystore
-  description                        = "IaC SSM Encryption Key Replica"
   deletion_window_in_days            = 30
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.ssm_key.json
@@ -561,9 +516,6 @@ resource "aws_kms_replica_key" "ssm_keystore" {
       bypass_policy_lockout_safety_check
     ]
   }
-  tags = {
-    origin = data.aws_caller_identity.current.account_id
-  }
 }
 
 resource "aws_s3_bucket" "state" {
@@ -572,18 +524,12 @@ resource "aws_s3_bucket" "state" {
   lifecycle {
     ignore_changes = [force_destroy]
   }
-  tags = {
-    Name = "iac-state"
-  }
 }
 resource "aws_s3_bucket" "state_logs" {
   bucket        = local.name_state_logs
   force_destroy = true
   lifecycle {
     ignore_changes = [force_destroy]
-  }
-  tags = {
-    Name = "iac-state-logs"
   }
 }
 resource "aws_s3_bucket" "replica" {
@@ -593,9 +539,6 @@ resource "aws_s3_bucket" "replica" {
   lifecycle {
     ignore_changes = [force_destroy]
   }
-  tags = {
-    Name = "iac-state-replica"
-  }
 }
 resource "aws_s3_bucket" "replica_logs" {
   provider      = aws.replica
@@ -603,9 +546,6 @@ resource "aws_s3_bucket" "replica_logs" {
   force_destroy = true
   lifecycle {
     ignore_changes = [force_destroy]
-  }
-  tags = {
-    Name = "iac-state-replica-logs"
   }
 }
 
@@ -1354,9 +1294,6 @@ resource "aws_dynamodb_table" "lock" {
     enabled     = true
     kms_key_arn = aws_kms_key.lock.arn
   }
-  tags = {
-    Name = "iac-state-lock"
-  }
 }
 resource "aws_dynamodb_table_replica" "lock" {
   provider               = aws.replica
@@ -1550,18 +1487,16 @@ data "aws_iam_policy_document" "state_manager" {
 }
 
 resource "aws_iam_policy" "state_observer" {
-  name        = local.name_state_observer
-  description = "Allows reading the IaC state."
-  policy      = data.aws_iam_policy_document.state_observer.json
+  name   = local.name_state_observer
+  policy = data.aws_iam_policy_document.state_observer.json
 }
 resource "aws_iam_role" "state_observer" {
   name               = local.name_state_observer
   assume_role_policy = data.aws_iam_policy_document.assume_role_caller.json
 }
 resource "aws_iam_policy" "state_manager" {
-  name        = local.name_state_manager
-  description = "Allows writing the IaC state."
-  policy      = data.aws_iam_policy_document.state_manager.json
+  name   = local.name_state_manager
+  policy = data.aws_iam_policy_document.state_manager.json
 }
 resource "aws_iam_role" "state_manager" {
   name               = local.name_state_manager
@@ -1838,23 +1773,20 @@ resource "aws_s3_bucket_replication_configuration" "state_logs" {
 }
 
 resource "aws_ssm_parameter" "state_bucket" {
-  name        = local.pointer_name_state_bucket
-  type        = "SecureString"
-  description = "Bucket used for IaC S3 backend deployment(s)."
-  value       = local.name_state_bucket
-  key_id      = aws_kms_key.ssm.id
+  name   = local.pointer_name_state_bucket
+  type   = "SecureString"
+  value  = local.name_state_bucket
+  key_id = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "state_bucket_key" {
-  name        = local.pointer_alias_state
-  type        = "SecureString"
-  description = "KMS key used for S3 backend encryption."
-  value       = local.alias_state
-  key_id      = aws_kms_key.ssm.id
+  name   = local.pointer_alias_state
+  type   = "SecureString"
+  value  = local.alias_state
+  key_id = aws_kms_key.ssm.id
 }
 resource "aws_ssm_parameter" "lock_table" {
-  name        = local.pointer_name_lock
-  type        = "SecureString"
-  description = "DynamoDB locking table used for IaC S3 backend deployment(s)."
-  value       = aws_dynamodb_table.lock.id
-  key_id      = aws_kms_key.ssm.id
+  name   = local.pointer_name_lock
+  type   = "SecureString"
+  value  = aws_dynamodb_table.lock.id
+  key_id = aws_kms_key.ssm.id
 }
