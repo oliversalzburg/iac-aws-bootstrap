@@ -70,11 +70,11 @@ import {
 }
 import {
   to = aws_s3_bucket.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
@@ -87,11 +87,11 @@ import {
 }
 import {
   to = aws_s3_bucket_versioning.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket_versioning.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
@@ -100,7 +100,7 @@ import {
 }
 import {
   to = aws_s3_bucket_server_side_encryption_configuration.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 
 import {
@@ -118,11 +118,11 @@ import {
 }
 import {
   to = aws_s3_bucket_public_access_block.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket_public_access_block.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
@@ -135,11 +135,11 @@ import {
 }
 import {
   to = aws_s3_bucket_policy.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket_policy.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
@@ -152,11 +152,11 @@ import {
 }
 import {
   to = aws_s3_bucket_ownership_controls.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket_ownership_controls.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
@@ -174,7 +174,7 @@ import {
 }
 import {
   to = aws_s3_bucket_logging.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 
 import {
@@ -196,11 +196,11 @@ import {
 }
 import {
   to = aws_s3_bucket_lifecycle_configuration.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket_lifecycle_configuration.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
@@ -213,11 +213,11 @@ import {
 }
 import {
   to = aws_s3_bucket_acl.replica
-  id = local.state_bucket_replica_name
+  id = local.name_state_bucket_replica
 }
 import {
   to = aws_s3_bucket_acl.replica_logs
-  id = local.state_bucket_replica_logs_name
+  id = local.name_state_logs_replica
 }
 
 import {
