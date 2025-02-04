@@ -13,6 +13,11 @@ terraform {
   backend "local" {}
   required_providers {
     aws = {
+      configuration_aliases = [
+        aws.global,
+        aws.replica,
+        aws.keystore
+      ]
       source  = "hashicorp/aws"
       version = "~> 5.85.0"
     }
@@ -614,7 +619,7 @@ data "aws_iam_policy_document" "state_lockdown" {
     condition {
       test     = "NumericLessThan"
       values   = ["1.3"]
-      variable = "aws:SecureTransport"
+      variable = "s3:TlsVersion"
     }
     sid = "RestrictDeprecatedTLS"
   }
@@ -736,7 +741,7 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
     condition {
       test     = "NumericLessThan"
       values   = ["1.3"]
-      variable = "aws:SecureTransport"
+      variable = "s3:TlsVersion"
     }
     sid = "RestrictDeprecatedTLS"
   }
@@ -838,7 +843,7 @@ data "aws_iam_policy_document" "replica_lockdown" {
     condition {
       test     = "NumericLessThan"
       values   = ["1.3"]
-      variable = "aws:SecureTransport"
+      variable = "s3:TlsVersion"
     }
     sid = "RestrictDeprecatedTLS"
   }
@@ -962,7 +967,7 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
     condition {
       test     = "NumericLessThan"
       values   = ["1.3"]
-      variable = "aws:SecureTransport"
+      variable = "s3:TlsVersion"
     }
     sid = "RestrictDeprecatedTLS"
   }
@@ -1321,21 +1326,6 @@ data "aws_iam_policy_document" "lock_lockdown" {
     sid = "RestrictToTLSRequestsOnly"
   }
   statement {
-    actions = ["dynamodb:*"]
-    effect  = "Deny"
-    principals {
-      type        = "*"
-      identifiers = ["*"]
-    }
-    resources = ["arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"]
-    condition {
-      test     = "NumericLessThan"
-      values   = ["1.3"]
-      variable = "aws:SecureTransport"
-    }
-    sid = "RestrictDeprecatedTLS"
-  }
-  statement {
     sid    = "BaselineIAMAccess"
     effect = "Allow"
     principals {
@@ -1383,21 +1373,6 @@ data "aws_iam_policy_document" "lock_replica_lockdown" {
       variable = "aws:SecureTransport"
     }
     sid = "RestrictToTLSRequestsOnly"
-  }
-  statement {
-    actions = ["dynamodb:*"]
-    effect  = "Deny"
-    principals {
-      type        = "*"
-      identifiers = ["*"]
-    }
-    resources = ["arn:${data.aws_partition.current.id}:dynamodb:${data.aws_region.replica.name}:${data.aws_caller_identity.current.account_id}:table/${local.name_lock}"]
-    condition {
-      test     = "NumericLessThan"
-      values   = ["1.3"]
-      variable = "aws:SecureTransport"
-    }
-    sid = "RestrictDeprecatedTLS"
   }
   statement {
     sid    = "BaselineIAMAccess"
