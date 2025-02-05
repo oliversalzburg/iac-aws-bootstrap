@@ -14,11 +14,10 @@ Terraform remote state backend on AWS, using discovery-resistant naming patterns
 
 > [!NOTE]
 > All resources are locked down through resource-based policies, as applicable. For S3 buckets:
-> - Require state requests to originate from MFA-authenticated sessions.
+> - Require state requests to originate from MFA-authenticated sessions, not older than 1 hour.
 > - Require all requests to use TLS v1.3 (or better).
-> - Prevent all PUT and DELETE requests on replication targets.
 > - Require all objects to be encrypted exclusively with our key.
-> - The primary state store additionally requires MFA-authenticated sessions to not be older than 1 hour.
+> - Prevent all PUT and DELETE requests on replication targets.
 
 Out of scope (for now):
 
