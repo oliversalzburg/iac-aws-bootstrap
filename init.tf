@@ -570,6 +570,11 @@ data "aws_iam_policy_document" "state_lockdown" {
       values   = [true]
       variable = "aws:MultiFactorAuthAge"
     }
+    condition {
+      test     = "ArnLike"
+      values   = ["arn:aws:iam::*:user/*"]
+      variable = "aws:PrincipalArn"
+    }
     sid = "RequireMFARequest"
   }
   statement {
@@ -584,6 +589,11 @@ data "aws_iam_policy_document" "state_lockdown" {
       test     = "NumericGreaterThan"
       values   = [3600]
       variable = "aws:MultiFactorAuthAge"
+    }
+    condition {
+      test     = "ArnLike"
+      values   = ["arn:aws:iam::*:user/*"]
+      variable = "aws:PrincipalArn"
     }
     sid = "RequireFreshMFA"
   }
