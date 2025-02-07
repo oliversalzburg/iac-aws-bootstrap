@@ -33,6 +33,9 @@ Create an AWS CLI SSO profile for your account, or whatever you have to do to co
 
 ## Setup
 
+> [!CAUTION]
+> Storing 4 customer managed keys in 3 regions incurs charges. Even _entirely idle_ deployments, will add 144 USD to your yearly cloud spend.
+
 ```shell
 terraform init
 terraform apply
