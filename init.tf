@@ -7,6 +7,15 @@ variable "force_namespace" {
   EOT
   type        = bool
 }
+variable "force_kms_key_deletion_window_in_days" {
+  default     = 30
+  description = <<-EOT
+  It should usually be worth it to keep the deleted keys for 30 days as a precaution.
+
+  But, especially during testing, it can be excessive to store the temporary resources this long. Thus, the value is lowered to 7 during tests.
+  EOT
+  type        = number
+}
 
 terraform {
   required_version = ">=1.5.9"
@@ -19,11 +28,11 @@ terraform {
         aws.keystore
       ]
       source  = "hashicorp/aws"
-      version = "~> 5.86.0"
+      version = "5.86.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = "~>3.6.3"
+      version = "3.6.3"
     }
   }
 }
@@ -258,7 +267,7 @@ data "aws_iam_policy_document" "state_key" {
   }
 }
 resource "aws_kms_key" "state" {
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
   policy                             = data.aws_iam_policy_document.state_key.json
@@ -276,7 +285,7 @@ resource "aws_kms_alias" "state" {
 }
 resource "aws_kms_replica_key" "state" {
   provider                           = aws.replica
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.state_key.json
   primary_key_arn                    = aws_kms_key.state.arn
@@ -294,7 +303,7 @@ resource "aws_kms_alias" "state_replica" {
 }
 resource "aws_kms_replica_key" "state_keystore" {
   provider                           = aws.keystore
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.state_key.json
   primary_key_arn                    = aws_kms_key.state.arn
@@ -331,7 +340,7 @@ data "aws_iam_policy_document" "logs_key" {
   }
 }
 resource "aws_kms_key" "logs" {
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
   policy                             = data.aws_iam_policy_document.logs_key.json
@@ -349,7 +358,7 @@ resource "aws_kms_alias" "logs" {
 }
 resource "aws_kms_replica_key" "logs" {
   provider                           = aws.replica
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.logs_key.json
   primary_key_arn                    = aws_kms_key.logs.arn
@@ -367,7 +376,7 @@ resource "aws_kms_alias" "logs_replica" {
 }
 resource "aws_kms_replica_key" "logs_keystore" {
   provider                           = aws.keystore
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.logs_key.json
   primary_key_arn                    = aws_kms_key.logs.arn
@@ -404,7 +413,7 @@ data "aws_iam_policy_document" "lock_key" {
   }
 }
 resource "aws_kms_key" "lock" {
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
   policy                             = data.aws_iam_policy_document.lock_key.json
@@ -422,7 +431,7 @@ resource "aws_kms_alias" "lock" {
 }
 resource "aws_kms_replica_key" "lock" {
   provider                           = aws.replica
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   primary_key_arn                    = aws_kms_key.lock.arn
   lifecycle {
@@ -439,7 +448,7 @@ resource "aws_kms_alias" "lock_replica" {
 }
 resource "aws_kms_replica_key" "lock_keystore" {
   provider                           = aws.keystore
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   primary_key_arn                    = aws_kms_key.lock.arn
   lifecycle {
@@ -475,7 +484,7 @@ data "aws_iam_policy_document" "ssm_key" {
   }
 }
 resource "aws_kms_key" "ssm" {
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   multi_region                       = true
   policy                             = data.aws_iam_policy_document.ssm_key.json
@@ -493,7 +502,7 @@ resource "aws_kms_alias" "ssm" {
 }
 resource "aws_kms_replica_key" "ssm" {
   provider                           = aws.replica
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.ssm_key.json
   primary_key_arn                    = aws_kms_key.ssm.arn
@@ -511,7 +520,7 @@ resource "aws_kms_alias" "ssm_replica" {
 }
 resource "aws_kms_replica_key" "ssm_keystore" {
   provider                           = aws.keystore
-  deletion_window_in_days            = 30
+  deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
   bypass_policy_lockout_safety_check = false
   policy                             = data.aws_iam_policy_document.ssm_key.json
   primary_key_arn                    = aws_kms_key.ssm.arn
