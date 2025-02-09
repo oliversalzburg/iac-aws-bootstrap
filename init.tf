@@ -265,6 +265,20 @@ data "aws_iam_policy_document" "state_key" {
     actions   = ["kms:*"]
     resources = ["*"]
   }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_replicator}"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:Encrypt",
+      "kms:GenerateDataKey"
+    ]
+    resources = ["*"]
+  }
 }
 resource "aws_kms_key" "state" {
   deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
@@ -338,6 +352,20 @@ data "aws_iam_policy_document" "logs_key" {
     actions   = ["kms:*"]
     resources = ["*"]
   }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_logs_replicator}"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:Encrypt",
+      "kms:GenerateDataKey"
+    ]
+    resources = ["*"]
+  }
 }
 resource "aws_kms_key" "logs" {
   deletion_window_in_days            = var.force_kms_key_deletion_window_in_days
@@ -409,6 +437,20 @@ data "aws_iam_policy_document" "lock_key" {
       identifiers = [data.aws_caller_identity.current.arn]
     }
     actions   = ["kms:*"]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_replicator}"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:Encrypt",
+      "kms:GenerateDataKey"
+    ]
     resources = ["*"]
   }
 }
@@ -683,6 +725,25 @@ data "aws_iam_policy_document" "state_lockdown" {
       "arn:aws:s3:::${local.name_state_bucket}/*"
     ]
   }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_replicator}"]
+    }
+    actions = [
+      "s3:GetReplicationConfiguration",
+      "s3:ListBucket",
+      "s3:GetObjectVersionForReplication",
+      "s3:GetObjectVersionAcl",
+      "s3:GetObjectVersionTagging"
+    ]
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket}",
+      "arn:aws:s3:::${local.name_state_bucket}/*"
+    ]
+  }
 }
 resource "aws_s3_bucket_policy" "state" {
   depends_on = [aws_s3_bucket.state]
@@ -805,6 +866,25 @@ data "aws_iam_policy_document" "state_logs_lockdown" {
       "arn:aws:s3:::${local.name_state_logs}/*"
     ]
   }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_logs_replicator}"]
+    }
+    actions = [
+      "s3:GetReplicationConfiguration",
+      "s3:ListBucket",
+      "s3:GetObjectVersionForReplication",
+      "s3:GetObjectVersionAcl",
+      "s3:GetObjectVersionTagging"
+    ]
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs}",
+      "arn:aws:s3:::${local.name_state_logs}/*"
+    ]
+  }
 }
 resource "aws_s3_bucket_policy" "state_logs" {
   depends_on = [aws_s3_bucket.state_logs]
@@ -902,6 +982,23 @@ data "aws_iam_policy_document" "replica_lockdown" {
       identifiers = [data.aws_caller_identity.current.arn]
     }
     actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${local.name_state_bucket_replica}",
+      "arn:aws:s3:::${local.name_state_bucket_replica}/*"
+    ]
+  }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_replicator}"]
+    }
+    actions = [
+      "s3:ReplicateObject",
+      "s3:ReplicateDelete",
+      "s3:ReplicateTags"
+    ]
     resources = [
       "arn:aws:s3:::${local.name_state_bucket_replica}",
       "arn:aws:s3:::${local.name_state_bucket_replica}/*"
@@ -1031,6 +1128,23 @@ data "aws_iam_policy_document" "replica_logs_lockdown" {
       "arn:aws:s3:::${local.name_state_logs_replica}/*"
     ]
   }
+  statement {
+    sid    = "ReplicatorAccess"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.name_state_logs_replicator}"]
+    }
+    actions = [
+      "s3:ReplicateObject",
+      "s3:ReplicateDelete",
+      "s3:ReplicateTags"
+    ]
+    resources = [
+      "arn:aws:s3:::${local.name_state_logs_replica}",
+      "arn:aws:s3:::${local.name_state_logs_replica}/*"
+    ]
+  }
 }
 resource "aws_s3_bucket_policy" "replica_logs" {
   provider   = aws.replica
@@ -1118,8 +1232,9 @@ resource "aws_s3_bucket_versioning" "replica_logs" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "state" {
-  depends_on = [aws_s3_bucket.state]
-  bucket     = local.name_state_bucket
+  depends_on                             = [aws_s3_bucket.state]
+  bucket                                 = local.name_state_bucket
+  transition_default_minimum_object_size = "all_storage_classes_128K"
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -1137,8 +1252,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "state" {
   }
 }
 resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
-  depends_on = [aws_s3_bucket.state_logs]
-  bucket     = local.name_state_logs
+  depends_on                             = [aws_s3_bucket.state_logs]
+  bucket                                 = local.name_state_logs
+  transition_default_minimum_object_size = "all_storage_classes_128K"
   rule {
     id = "expire-history"
     expiration {
@@ -1151,9 +1267,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "state_logs" {
   }
 }
 resource "aws_s3_bucket_lifecycle_configuration" "replica" {
-  provider   = aws.replica
-  depends_on = [aws_s3_bucket.replica]
-  bucket     = local.name_state_bucket_replica
+  provider                               = aws.replica
+  depends_on                             = [aws_s3_bucket.replica]
+  bucket                                 = local.name_state_bucket_replica
+  transition_default_minimum_object_size = "all_storage_classes_128K"
   rule {
     id = "expire-history"
     noncurrent_version_transition {
@@ -1167,9 +1284,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "replica" {
   }
 }
 resource "aws_s3_bucket_lifecycle_configuration" "replica_logs" {
-  provider   = aws.replica
-  depends_on = [aws_s3_bucket.replica_logs]
-  bucket     = local.name_state_logs_replica
+  provider                               = aws.replica
+  depends_on                             = [aws_s3_bucket.replica_logs]
+  bucket                                 = local.name_state_logs_replica
+  transition_default_minimum_object_size = "all_storage_classes_128K"
   rule {
     id = "expire-history"
     expiration {
@@ -1557,7 +1675,10 @@ data "aws_iam_policy_document" "state_replicator" {
     sid       = "Replicate"
   }
   statement {
-    actions   = ["kms:Decrypt"]
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey"
+    ]
     effect    = "Allow"
     resources = [aws_kms_key.state.arn]
     sid       = "Decrypt"

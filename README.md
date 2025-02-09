@@ -37,9 +37,9 @@ Create an AWS CLI SSO profile for your account, or whatever you have to do to co
 > Storing 4 customer managed keys in 3 regions incurs charges. Even _entirely idle_ deployments, will add 144&nbsp;USD to your yearly cloud spend.
 
 ```shell
-terraform init
-terraform apply
-terraform output seed
+tofu init
+tofu apply
+tofu output seed
 # Optional: Display a backend configuration.
 ./display-backend.tf.sh
 ```
@@ -52,9 +52,9 @@ terraform output seed
 To generate the seed outside of the first infrastructure plan generation, `-target` the resource.
 
 ```shell
-terraform init
-terraform apply -refresh=false -target=random_id.seed
-terraform apply
+tofu init
+tofu apply -refresh=false -target=random_id.seed
+tofu apply
 ```
 
 ## Restore
@@ -63,11 +63,11 @@ Restore the state by providing the seed that was used to create it.
 
 ```shell
 cd import
-terraform init
+tofu init
 # Ensure AWS_PROFILE and AWS_REGION are set appropriately.
 # Prefix command with space to prevent history entry.
- terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
-terraform apply
+ tofu import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+tofu apply
 ```
 
 ## Post-Deployment Validation
@@ -78,11 +78,11 @@ Expect success
 
 ```shell
 # Note seed.
-terraform output -json seed | jq --raw-output '.id'
+tofu output -json seed | jq --raw-output '.id'
 # Delete state.
 rm *.tfstate*
- terraform import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
-terraform apply
+ tofu import random_id.seed oCxD1aYEn4eSQXIObCAQZd6KpN_5-82G8_7PGYvXvmo
+tofu apply
 ```
 
 ### S3 State Bucket Initiator Write Access
@@ -91,9 +91,9 @@ Expect success
 
 ```shell
 # Write flag to state bucket
-echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms --sse-kms-key-id=$(terraform output -json kms | jq --raw-output '.state.id')
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(tofu output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms --sse-kms-key-id=$(tofu output -json kms | jq --raw-output '.state.id')
 # Verify
-aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt -
+aws s3 cp s3://$(tofu output -json s3 | jq --raw-output '.state.id')/flag.txt -
 ```
 
 ### S3 State Replication
@@ -102,9 +102,10 @@ Expect success
 
 ```shell
 # Write flag to state bucket
-echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms --sse-kms-key-id=$(terraform output -json kms | jq --raw-output '.state.id')
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(tofu output -json s3 | jq --raw-output '.state.id')/flag.txt --sse=aws:kms --sse-kms-key-id=$(tofu output -json kms | jq --raw-output '.state.id')
 # Verify on replica
-aws s3 cp s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt -
+aws s3api wait object-exists --bucket=$(tofu output -json s3 | jq --raw-output '.replica.id') --key=flag.txt
+aws s3 cp s3://$(tofu output -json s3 | jq --raw-output '.replica.id')/flag.txt -
 ```
 
 ### S3 State Replica Bucket Initiator Write Denial
@@ -113,14 +114,14 @@ Expect failure
 
 ```shell
 # Write flag to replica bucket
-echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+echo "$(date) $(whoami)@$(hostname):$PWD" | aws s3 cp - s3://$(tofu output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
 # Replace flag with own
-echo "$(date) CAPTURE" | aws s3 cp - s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+echo "$(date) CAPTURE" | aws s3 cp - s3://$(tofu output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
 # Delete flag
-aws s3 rm s3://$(terraform output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
+aws s3 rm s3://$(tofu output -json s3 | jq --raw-output '.replica.id')/flag.txt --sse=aws:kms
 ```
 
-## Terraform Implementation Spec
+## Implementation Spec
 
 <!-- BEGIN_TF_DOCS -->
 ### Requirements

@@ -12,10 +12,11 @@ resource "local_file" "test" {
     if {$os_error_flag == 0} {
         puts "exit status: $value"
         if {$value == 0} { exit 0 }
+        exit 1
     } else {
         puts "errno: $value"
+        exit 1
     }
-    exit 1
     EOT
   filename = random_uuid.test.result
 }

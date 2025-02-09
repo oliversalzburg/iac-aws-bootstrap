@@ -68,7 +68,20 @@ run "pass_s3_put_sse_kms_cmk" {
       ${run.loader.flag_filename} \
       s3://${run.execute.s3.state.id}/${run.loader.flag_filename} \
       --sse=aws:kms \
-      --sse-kms-key-id=${run.execute.kms.state.id}
+      --sse-kms-key-id=${run.execute.kms.state.key_id}
+    EOT
+  }
+}
+
+run "pass_wait_for_state_replica" {
+  module {
+    source = "./test/authorized"
+  }
+  variables {
+    aws_cli_cmd = <<-EOT
+    aws s3api wait object-exists \
+      --bucket=${run.execute.s3.replica.id} \
+      --key=${run.loader.flag_filename}
     EOT
   }
 }
@@ -100,3 +113,19 @@ run "fail_s3_delete_default_sse" {
   }
 }
 
+run "load-replicas" {
+  module {
+    source = "./test/load-replicas"
+  }
+  providers = {
+    aws.replica = aws.replica
+  }
+  variables {
+    s3_bucket_replica = run.execute.s3.replica.id
+    s3_key_flag       = run.loader.flag_filename
+  }
+  assert {
+    condition     = data.aws_s3_object.this.content == run.loader.flag_content
+    error_message = "The content of the flag on the replica does not match our expected flag content."
+  }
+}
