@@ -28,7 +28,7 @@ terraform {
         aws.keystore
       ]
       source  = "hashicorp/aws"
-      version = "6.32.1"
+      version = "6.33.0"
     }
     random = {
       source  = "hashicorp/random"
