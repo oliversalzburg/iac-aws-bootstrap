@@ -1,5 +1,8 @@
 # AWS IaC Bootstrapping
 
+> [!CAUTION]
+> Most of the world is not ready to see how they should protect their IaC states. Spending any time on this is a waste. Thus, this repository has been **archived as of 2026-03-22**.
+
 Terraform remote state backend on AWS, using discovery-resistant naming patterns and ephemeral local states.
 
 - Single file ignition.
